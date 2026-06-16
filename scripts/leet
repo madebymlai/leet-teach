@@ -59,7 +59,7 @@ pane_edit() {
         tmux send-keys -t "$pane_id" "leetcode edit $id" Enter
     else
         local pane_id
-        pane_id=$(tmux split-window -h -P -F '#{pane_id}' "leetcode edit $id")
+        pane_id=$(tmux split-window -h -P -F '#{pane_id}' "bash -c 'leetcode edit $id; exec bash'")
         echo "$pane_id" > "$LEET_PANE_ID_FILE"
     fi
 }
