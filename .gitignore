@@ -1,5 +1,5 @@
 node_modules/
-leetcode/
+/leetcode/
 *.pyc
 .DS_Store
 .env
