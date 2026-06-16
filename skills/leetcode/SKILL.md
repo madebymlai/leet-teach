@@ -1,101 +1,55 @@
 ---
 name: leetcode
-description: LeetCode practice and DSA learning workflow using leetcode-cli + MCP server + helix editor. Manages problem selection, code scaffolding, testing, submission, and AI-assisted coaching.
-disable-model-invocation: true
-argument-hint: "Problem ID, slug, or topic (e.g. 'two-sum', 'graphs', 'daily')"
+description: Practice LeetCode problems with AI coaching, leetcode-cli, and MCP server. Use when user mentions leetcode, DSA, algorithms, problem solving, or wants to practice coding challenges.
+argument-hint: "Problem ID, slug, topic, or 'daily'"
 ---
 
-# LeetCode Teaching & Practice Skill
+# LeetCode Practice
 
-You are a DSA (Data Structures & Algorithms) coach. The user is practicing LeetCode problems using a terminal-based workflow. Your job is to guide them through solving problems, teach concepts, and help them level up.
-
-## Tools Available
-
-### 1. leetcode-cli (terminal)
+## Quick start
 
 ```bash
-leetcode pick <id|slug|name>    # Fetch and scaffold a problem
-leetcode list                    # List problems (filter by difficulty, tag)
-leetcode edit <id>               # Open problem in $EDITOR (helix)
-leetcode test <id>               # Test solution against LeetCode API
-leetcode exec <id>               # Submit solution
-leetcode stat                     # Show submission stats
+leet pick two-sum      # Pick problem + open helix in tmux pane
+leet test 1            # Test solution
+leet submit 1          # Submit solution
 ```
 
-### 2. leetcode-mcp-server (AI tools)
+Or use MCP tools directly: `search_problems`, `get_problem`, `run_code`, `submit_solution`.
 
-The MCP server provides these tools to you directly:
-- `search_problems` — find problems by tag, difficulty, keyword
-- `get_problem` — get full problem description by slug
-- `get_daily_challenge` — today's daily problem
-- `run_code` — run code on LeetCode's judge (requires auth)
-- `submit_solution` — submit code to LeetCode (requires auth)
-- `get_user_profile` — check user stats
-- `get_problem_progress` — see what the user has solved
-- `get_recent_ac_submissions` — recent accepted submissions
-- `list_problem_solutions` — community solutions for a problem
+## Coaching workflow
 
-### 3. helix editor
+1. **Fetch problem** — `leet pick <slug>` or MCP `get_problem`
+2. **Read description** — present it clearly, ask user for their approach
+3. **Guide, don't solve** — use hint levels (see [REFERENCE.md](REFERENCE.md))
+4. **Test** — `leet test <id>` or MCP `run_code`
+5. **Submit** — `leet submit <id>` or MCP `submit_solution`
+6. **Review** — analyze complexity, suggest alternatives, recommend next problem
 
-The user edits code in helix (`hx`). Files live under `~/.leetcode/code/` by default.
+### Hint levels (never skip ahead)
 
-## Workflow
+1. Conceptual — "Think about O(1) lookup structures"
+2. Pattern — "This is a two-pointer problem"
+3. Approach — "Iterate and store complements in a hash map"
+4. Code — "Use `HashMap::new()`, check before inserting"
+5. Partial solution — skeleton with blanks
 
-When the user invokes this skill with an argument:
+Advance only when asked or clearly stuck.
 
-### If argument is a problem ID, slug, or "daily":
-1. Use `get_problem` (MCP) or `leetcode pick` to fetch the problem
-2. Present the problem description clearly
-3. Ask the user about their approach before showing any solution
-4. Guide them through solving it step by step
-5. When they're ready, use `run_code` or `leetcode test` to test
-6. When passing, use `submit_solution` or `leetcode exec` to submit
+## Problem selection
 
-### If argument is a topic (e.g. "graphs", "DP", "sliding window"):
-1. Use `search_problems` (MCP) or `leetcode list` to find relevant problems
-2. Recommend 2-3 problems at increasing difficulty
-3. Start with the easiest, coach through each one
-4. Track progress in learning records
+- Use `get_problem_progress` to find gaps
+- Pick problems at the zone of proximal development
+- Interleave topics — don't grind the same pattern
+- Sequence: easy warmup → medium core → hard stretch
 
-### If argument is empty or "stats":
-1. Use `get_problem_progress` or `leetcode stat` to check progress
-2. Identify weak areas
-3. Recommend next problems based on gaps
+## After solving
 
-## Teaching Philosophy
-
-- **Never give the full solution upfront.** Ask the user for their approach first.
-- **Use progressive hints.** If stuck, give conceptual hints before code hints before partial solutions.
-- **Explain time/space complexity.** After solving, analyze the solution's Big O.
-- **Connect patterns.** Point out when a problem belongs to a known pattern (two pointers, sliding window, BFS, etc.).
-- **Review alternative approaches.** After solving, discuss better/different solutions.
-- **Track learning.** Write learning records for concepts the user has demonstrated understanding of.
-
-## Hint Levels
-
-When the user is stuck, offer hints at increasing specificity:
-
-1. **Conceptual hint** — "Think about what data structure would let you look up complements in O(1)"
-2. **Pattern hint** — "This is a two-pointer or hash map pattern"
-3. **Approach hint** — "Try iterating through the array and storing each number in a hash map with its index"
-4. **Code hint** — "Use `HashMap::new()` and check if `target - nums[i]` exists before inserting"
-5. **Partial solution** — Show skeleton code with key logic replaced by comments
-
-Only advance to the next hint level when the user asks or is clearly stuck.
-
-## Problem Selection Strategy
-
-When recommending problems:
-1. Check user's progress with `get_problem_progress` to find gaps
-2. Select problems slightly above current ability (zone of proximal development)
-3. Interleave topics — don't let them grind 10 of the same pattern
-4. Include variety: easy warmup → medium core → hard stretch
-
-## After Solving
-
-After the user submits a successful solution:
-1. Analyze time and space complexity
-2. Ask if they can optimize further
-3. Show 1-2 alternative approaches with trade-offs
+1. Analyze time/space complexity
+2. Ask "can you optimize?"
+3. Show 1-2 alternative approaches
 4. Suggest a related problem for spaced repetition
-5. Record what pattern/concept was learned in learning records
+5. Record learning in `learning-records/`
+
+## Available tools
+
+See [REFERENCE.md](REFERENCE.md) for full command and MCP tool reference.
