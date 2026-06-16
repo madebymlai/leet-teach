@@ -1,6 +1,6 @@
 ---
 name: leetcode
-description: Practice LeetCode problems with AI coaching, leetcode-cli, and MCP server. Use when user mentions leetcode, DSA, algorithms, problem solving, or wants to practice coding challenges.
+description: Practice LeetCode problems with AI coaching, leetcode-cli, and MCP server. Use when user mentions leetcode, DSA, algorithms, problem solving, or wants to practice coding challenges. Triggers the teach skill for structured lessons and learning records.
 argument-hint: "Problem ID, slug, topic, or 'daily'"
 ---
 
@@ -49,6 +49,19 @@ Advance only when asked or clearly stuck.
 3. Show 1-2 alternative approaches
 4. Suggest a related problem for spaced repetition
 5. Record learning in `learning-records/`
+
+## Teaching integration
+
+Use the **teach** skill for structured learning:
+- When a concept clicks, write a learning record (`learning-records/`)
+- Create interactive lessons in `lessons/` for complex topics
+- Update `GLOSSARY.md` with new terms
+- Track mission alignment in `MISSION.md`
+
+If the teach skill is available, invoke it for:
+- First encounter with a new pattern → create a lesson
+- Misconception corrected → write a learning record
+- Mission shift → update MISSION.md
 
 ## Available tools
 
