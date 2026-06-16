@@ -316,25 +316,25 @@ configure_mcp() {
 CLAUDEMCP
     ok "Claude Desktop MCP config written"
 
-    # --- Claude Code / Codex ---
+    # --- Codex ---
     CODEX_CONFIG_DIR="$HOME/.codex"
     mkdir -p "$CODEX_CONFIG_DIR"
-    cat > "$CODEX_CONFIG_DIR/mcp.json" << CODEXMCP
-{
-  "mcpServers": {
-    "leetcode": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@jinzcdev/leetcode-mcp-server", "--site", "global"],
-      "env": {
-        "LEETCODE_SITE": "global",
-        "LEETCODE_SESSION": ""
-      }
-    }
-  }
-}
+    CODEX_CONFIG="$CODEX_CONFIG_DIR/config.toml"
+    if [ -f "$CODEX_CONFIG" ] && grep -q "mcp_servers.leetcode" "$CODEX_CONFIG" 2>/dev/null; then
+        info "Codex leetcode MCP already configured, skipping"
+    else
+        cat >> "$CODEX_CONFIG" << 'CODEXMCP'
+
+[mcp_servers.leetcode]
+command = "npx"
+args = ["-y", "@jinzcdev/leetcode-mcp-server", "--site", "global"]
+
+[mcp_servers.leetcode.env]
+LEETCODE_SITE = "global"
+LEETCODE_SESSION = ""
 CODEXMCP
-    ok "Codex MCP config written"
+        ok "Codex MCP config added to $CODEX_CONFIG"
+    fi
 
     # --- OpenCode ---
     OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
