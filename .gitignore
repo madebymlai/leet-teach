@@ -4,3 +4,4 @@ leetcode/
 .DS_Store
 .env
 LEETCODE_SESSION=*
+.agents/

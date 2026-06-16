@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -8,7 +10,7 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-PROJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
 ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
@@ -27,12 +29,23 @@ check_cmd() {
 
 install_helix() {
     info "Checking for helix editor..."
-    if check_cmd hx; then
+    if command -v hx &>/dev/null; then
         ok "helix already installed: $(command -v hx)"
+        return 0
+    elif command -v helix &>/dev/null; then
+        ok "helix already installed: $(command -v helix)"
+        # Symlink hx -> helix if not already present
+        if [ ! -e /usr/local/bin/hx ] && [ ! -e "$HOME/.local/bin/hx" ]; then
+            info "Creating hx symlink -> helix..."
+            mkdir -p "$HOME/.local/bin"
+            ln -sf "$(command -v helix)" "$HOME/.local/bin/hx"
+            ok "Created $HOME/.local/bin/hx -> $(command -v helix)"
+            export PATH="$HOME/.local/bin:$PATH"
+        fi
         return 0
     fi
 
-    err "helix (hx) not found."
+    err "helix (hx/helix) not found."
     echo ""
     echo -e "${YELLOW}Please install helix before running this script.${NC}"
     echo -e "${YELLOW}Installation guide: https://docs.helix-editor.com/install.html${NC}"
@@ -183,8 +196,10 @@ configure_leetcode_cli() {
     fi
 
     local editor_cmd="hx"
-    if check_cmd hx; then
+    if command -v hx &>/dev/null; then
         editor_cmd="hx"
+    elif command -v helix &>/dev/null; then
+        editor_cmd="helix"
     elif [ -n "${EDITOR:-}" ]; then
         editor_cmd="$EDITOR"
     fi
@@ -359,15 +374,12 @@ install_skills() {
         ok "teach skill files downloaded manually to .skills/teach/"
     }
 
-    # Install the local leetcode skill
-    info "Installing local leetcode skill..."
-    npx skills@latest add "$PROJ_DIR" --skill leetcode -y 2>/dev/null || {
-        info "Trying alternative install method..."
-        npx skills@latest add "$PROJ_DIR/skill.yaml" -y 2>/dev/null || {
-            warn "Could not install local skill via npx."
-            warn "The skill files (SKILL.md, skill.yaml) are available at $PROJ_DIR/"
-            warn "You can manually install with: npx skills@latest add $PROJ_DIR --skill leetcode"
-        }
+    # Install the leetcode skill from GitHub
+    info "Installing leetcode skill from GitHub..."
+    npx skills@latest add madebymlai/leet-teach --skill leetcode -y 2>/dev/null || {
+        warn "Could not install leetcode skill from GitHub."
+        warn "The skill is available at skills/leetcode/SKILL.md"
+        warn "Install manually: npx skills@latest add madebymlai/leet-teach --skill leetcode"
     }
 
     ok "Skills setup complete"
