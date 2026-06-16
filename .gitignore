@@ -1,0 +1,6 @@
+node_modules/
+leetcode/
+*.pyc
+.DS_Store
+.env
+LEETCODE_SESSION=*
