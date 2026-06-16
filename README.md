@@ -5,7 +5,7 @@ LeetCode practice workspace with AI-assisted coaching. Uses helix editor, leetco
 ## Quick Start
 
 ```bash
-cd ~/git/leet-teach
+cd ~/git/computer-science/leet
 chmod +x scripts/setup.sh
 ./scripts/setup.sh
 ```

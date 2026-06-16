@@ -336,34 +336,39 @@ install_skills() {
 
     cd "$PROJ_DIR"
 
-    # Install mattpocock skills CLI and teach skill (project-local, not -g)
-    if check_cmd npx; then
-        info "Installing mattpocock/skills teach skill (project-local)..."
-        npx skills@latest add mattpocock/skills --filter teach --project-only 2>/dev/null || {
-            warn "npx skills add failed, trying manual setup..."
-            mkdir -p "$PROJ_DIR/.skills/teach"
-            curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/SKILL.md" \
-                -o "$PROJ_DIR/.skills/teach/SKILL.md"
-            curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/MISSION-FORMAT.md" \
-                -o "$PROJ_DIR/.skills/teach/MISSION-FORMAT.md"
-            curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/LEARNING-RECORD-FORMAT.md" \
-                -o "$PROJ_DIR/.skills/teach/LEARNING-RECORD-FORMAT.md"
-            curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/RESOURCES-FORMAT.md" \
-                -o "$PROJ_DIR/.skills/teach/RESOURCES-FORMAT.md"
-            curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/GLOSSARY-FORMAT.md" \
-                -o "$PROJ_DIR/.skills/teach/GLOSSARY-FORMAT.md"
-            ok "teach skill files downloaded manually to .skills/teach/"
-        }
-
-        # Install the local leetcode skill
-        info "Installing local leetcode skill..."
-        npx skills@latest add --local "$PROJ_DIR/skill.yaml" --project-only 2>/dev/null || {
-            warn "Could not install local skill via npx, skill.yaml is available at $PROJ_DIR/skill.yaml"
-        }
-    else
-        err "npx not found. Cannot install skills."
+    if ! check_cmd npx; then
+        err "npx not found. Cannot install skills. Install Node.js first: https://nodejs.org/"
         return 1
     fi
+
+    # Install mattpocock teach skill (project-local, not -g)
+    info "Installing mattpocock/skills teach skill (project-local)..."
+    npx skills@latest add mattpocock/skills --skill teach -y 2>/dev/null || {
+        warn "npx skills add failed, trying manual setup..."
+        mkdir -p "$PROJ_DIR/.skills/teach"
+        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/SKILL.md" \
+            -o "$PROJ_DIR/.skills/teach/SKILL.md"
+        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/MISSION-FORMAT.md" \
+            -o "$PROJ_DIR/.skills/teach/MISSION-FORMAT.md"
+        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/LEARNING-RECORD-FORMAT.md" \
+            -o "$PROJ_DIR/.skills/teach/LEARNING-RECORD-FORMAT.md"
+        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/RESOURCES-FORMAT.md" \
+            -o "$PROJ_DIR/.skills/teach/RESOURCES-FORMAT.md"
+        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/GLOSSARY-FORMAT.md" \
+            -o "$PROJ_DIR/.skills/teach/GLOSSARY-FORMAT.md"
+        ok "teach skill files downloaded manually to .skills/teach/"
+    }
+
+    # Install the local leetcode skill
+    info "Installing local leetcode skill..."
+    npx skills@latest add "$PROJ_DIR" --skill leetcode -y 2>/dev/null || {
+        info "Trying alternative install method..."
+        npx skills@latest add "$PROJ_DIR/skill.yaml" -y 2>/dev/null || {
+            warn "Could not install local skill via npx."
+            warn "The skill files (SKILL.md, skill.yaml) are available at $PROJ_DIR/"
+            warn "You can manually install with: npx skills@latest add $PROJ_DIR --skill leetcode"
+        }
+    }
 
     ok "Skills setup complete"
 }
