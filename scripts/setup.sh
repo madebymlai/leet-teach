@@ -351,7 +351,7 @@ path = '$OPENCODE_CONFIG_DIR/config.json'
 if os.path.exists(path):
     with open(path) as f:
         cfg = json.load(f)
-mcp = cfg.get('mcpServers', {})
+mcp = cfg.get('mcp', {})
 mcp['leetcode'] = {
     'type': 'local',
     'enabled': True,
@@ -361,7 +361,7 @@ mcp['leetcode'] = {
         'LEETCODE_SESSION': ''
     }
 }
-cfg['mcpServers'] = mcp
+cfg['mcp'] = mcp
 with open(path, 'w') as f:
     json.dump(cfg, f, indent=2)
 " 2>/dev/null || warn "Could not update OpenCode config automatically — see mcp-configs/opencode.json for manual setup"
