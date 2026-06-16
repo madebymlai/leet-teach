@@ -10,24 +10,25 @@ Usage: $PROG <command> [args]
 LeetCode + tmux workflow wrapper.
 
 Commands:
-  pick <id|slug>   Pick a problem, then open it in a new tmux pane
-  edit <id>        Open problem in a new tmux pane (must be picked first)
-  pane <id>        Open a new tmux pane with 'leetcode edit <id>'
+  pick <id|slug>   Pick a problem, then open it in the helix pane
+  edit <id>        Open problem in helix pane (reuses existing pane)
   test <id>        Test solution (runs in current pane)
   submit <id>      Submit solution (runs in current pane)
+  close            Close the helix pane
 
 Examples:
   $PROG pick two-sum       # Pick + open in helix pane
-  $PROG edit 1             # Open problem 1 in helix pane
+  $PROG edit 1             # Switch problem 1 in existing helix pane
   $PROG test 1             # Run tests
   $PROG submit 1           # Submit solution
+  $PROG close              # Close helix pane
 
 Tmux layout:
   Left:  AI agent session (opencode/claude/codex)
   Right: helix editor (opened by this script)
 
-The editor pane is labelled 'leet-edit' so you can target it later:
-  tmux send-keys -t leet-edit ':w' Enter   # save from other pane
+The editor pane is named 'leet-edit' and is reused across problems.
+Close it with: $PROG close
 EOF
 }
 
@@ -45,7 +46,39 @@ check_tmux() {
 pane_edit() {
     local id="$1"
     check_tmux
-    tmux split-window -h -n leet-edit "leetcode edit $id"
+    if pane_exists; then
+        tmux send-keys -t leet-edit Escape ':q!' Enter 2>/dev/null || true
+        sleep 0.2
+        tmux send-keys -t leet-edit "leetcode edit $id" Enter
+    else
+        tmux split-window -h -n leet-edit "leetcode edit $id"
+    fi
+}
+
+pane_exists() {
+    tmux list-panes -F '#{pane_title}' 2>/dev/null | grep -q 'leet-edit' || \
+    tmux list-panas -F '#{pane_id}' -f '#{pane_title}=leet-edit' 2>/dev/null && return 0
+    tmux has-session -t leet-edit 2>/dev/null && return 0
+    for pane in $(tmux list-panes -F '#{pane_id}'); do
+        if tmux display-message -t "$pane" -p '#{pane_title}' 2>/dev/null | grep -q 'leet-edit'; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+close_pane() {
+    check_tmux
+    if pane_exists; then
+        for pane in $(tmux list-panes -F '#{pane_id}'); do
+            if tmux display-message -t "$pane" -p '#{pane_title}' 2>/dev/null | grep -q 'leet-edit'; then
+                tmux kill-pane -t "$pane"
+                echo "Closed leet-edit pane"
+                return 0
+            fi
+        done
+    fi
+    echo "No leet-edit pane found"
 }
 
 do_pick() {
@@ -94,9 +127,9 @@ shift
 case "$cmd" in
     pick)   [ $# -lt 1 ] && { echo "Usage: $PROG pick <id|slug>" >&2; exit 1; }; do_pick "$1" ;;
     edit)   [ $# -lt 1 ] && { echo "Usage: $PROG edit <id>" >&2; exit 1; }; pane_edit "$1" ;;
-    pane)   [ $# -lt 1 ] && { echo "Usage: $PROG pane <id>" >&2; exit 1; }; pane_edit "$1" ;;
     test)   [ $# -lt 1 ] && { echo "Usage: $PROG test <id>" >&2; exit 1; }; do_test "$1" ;;
     submit) [ $# -lt 1 ] && { echo "Usage: $PROG submit <id>" >&2; exit 1; }; do_submit "$1" ;;
+    close)  close_pane ;;
     -h|--help|help) usage ;;
     *)      echo "Unknown command: $cmd" >&2; usage; exit 1 ;;
 esac
