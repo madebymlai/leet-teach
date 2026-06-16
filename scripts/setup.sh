@@ -161,6 +161,40 @@ LANGSCONFIG
     fi
 }
 
+configure_tmux() {
+    info "Configuring tmux..."
+    TMUX_CONFIG="$HOME/.tmux.conf"
+    touch "$TMUX_CONFIG"
+
+    # Mouse support
+    if ! grep -q "set -g mouse on" "$TMUX_CONFIG" 2>/dev/null; then
+        echo "" >> "$TMUX_CONFIG"
+        echo "# leet-teach: enable mouse" >> "$TMUX_CONFIG"
+        echo "set -g mouse on" >> "$TMUX_CONFIG"
+        ok "tmux mouse enabled"
+    else
+        info "tmux mouse already enabled"
+    fi
+
+    # Alt+arrow to switch panes (alongside Ctrl+B arrows)
+    if ! grep -q "Alt-Up" "$TMUX_CONFIG" 2>/dev/null; then
+        echo "" >> "$TMUX_CONFIG"
+        echo "# leet-teach: Alt+arrow pane switching" >> "$TMUX_CONFIG"
+        echo 'bind -n M-Up select-pane -U' >> "$TMUX_CONFIG"
+        echo 'bind -n M-Down select-pane -D' >> "$TMUX_CONFIG"
+        echo 'bind -n M-Left select-pane -L' >> "$TMUX_CONFIG"
+        echo 'bind -n M-Right select-pane -R' >> "$TMUX_CONFIG"
+        ok "Alt+arrow pane switching configured"
+    else
+        info "Alt+arrow pane switching already configured"
+    fi
+
+    # Reload tmux if running
+    if [ -n "${TMUX:-}" ]; then
+        tmux source-file "$TMUX_CONFIG" 2>/dev/null && ok "tmux config reloaded" || warn "Could not reload tmux config (will apply on next session)"
+    fi
+}
+
 install_leetcode_cli() {
     info "Installing leetcode-cli (clearloop)..."
     if check_cmd leetcode; then
@@ -399,7 +433,7 @@ main() {
     echo "╚══════════════════════════════════════════╝"
     echo -e "${NC}"
 
-    local steps=("helix" "helix-config" "leetcode-cli" "leetcode-config" "mcp-install" "mcp-config" "skills" "project")
+    local steps=("helix" "helix-config" "tmux-config" "leetcode-cli" "leetcode-config" "mcp-install" "mcp-config" "skills" "project")
     local failed=()
 
     for step in "${steps[@]}"; do
@@ -408,6 +442,7 @@ main() {
         case "$step" in
             helix)         install_helix || failed+=("$step") ;;
             helix-config)  configure_helix || failed+=("$step") ;;
+            tmux-config)   configure_tmux || failed+=("$step") ;;
             leetcode-cli)  install_leetcode_cli || failed+=("$step") ;;
             leetcode-config) configure_leetcode_cli || failed+=("$step") ;;
             mcp-install)   install_mcp_server || failed+=("$step") ;;
