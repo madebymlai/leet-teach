@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROG="$(basename "$0")"
+
+usage() {
+    cat <<EOF
+Usage: $PROG <command> [args]
+
+LeetCode + tmux workflow wrapper.
+
+Commands:
+  pick <id|slug>   Pick a problem, then open it in a new tmux pane
+  edit <id>        Open problem in a new tmux pane (must be picked first)
+  pane <id>        Open a new tmux pane with 'leetcode edit <id>'
+  test <id>        Test solution (runs in current pane)
+  submit <id>      Submit solution (runs in current pane)
+
+Examples:
+  $PROG pick two-sum       # Pick + open in helix pane
+  $PROG edit 1             # Open problem 1 in helix pane
+  $PROG test 1             # Run tests
+  $PROG submit 1           # Submit solution
+
+Tmux layout:
+  Left:  AI agent session (opencode/claude/codex)
+  Right: helix editor (opened by this script)
+
+The editor pane is labelled 'leet-edit' so you can target it later:
+  tmux send-keys -t leet-edit ':w' Enter   # save from other pane
+EOF
+}
+
+check_tmux() {
+    if ! command -v tmux &>/dev/null; then
+        echo "Error: tmux not found. Install: sudo pacman -S tmux" >&2
+        exit 1
+    fi
+    if [ -z "${TMUX:-}" ]; then
+        echo "Error: not inside a tmux session. Start one with: tmux" >&2
+        exit 1
+    fi
+}
+
+pane_edit() {
+    local id="$1"
+    check_tmux
+    tmux split-window -h -n leet-edit "leetcode edit $id"
+}
+
+do_pick() {
+    local slug="$1"
+    local output
+    output=$(leetcode pick "$slug" 2>&1) || {
+        echo "$output"
+        echo "Error: leetcode pick failed" >&2
+        exit 1
+    }
+    echo "$output"
+
+    local id
+    id=$(echo "$output" | grep -oP '\[\d+\]' | head -1 | grep -oP '\d+')
+    if [ -z "$id" ]; then
+        id=$(echo "$output" | grep -oP '^\d+' | head -1)
+    fi
+    if [ -z "$id" ]; then
+        echo "Warning: could not parse problem ID, use 'leet edit <id>' manually"
+        return 0
+    fi
+
+    echo ""
+    echo "Opening problem $id in helix pane..."
+    pane_edit "$id"
+}
+
+do_test() {
+    local id="$1"
+    leetcode test "$id"
+}
+
+do_submit() {
+    local id="$1"
+    leetcode exec "$id"
+}
+
+if [ $# -lt 1 ]; then
+    usage
+    exit 1
+fi
+
+cmd="$1"
+shift
+
+case "$cmd" in
+    pick)   [ $# -lt 1 ] && { echo "Usage: $PROG pick <id|slug>" >&2; exit 1; }; do_pick "$1" ;;
+    edit)   [ $# -lt 1 ] && { echo "Usage: $PROG edit <id>" >&2; exit 1; }; pane_edit "$1" ;;
+    pane)   [ $# -lt 1 ] && { echo "Usage: $PROG pane <id>" >&2; exit 1; }; pane_edit "$1" ;;
+    test)   [ $# -lt 1 ] && { echo "Usage: $PROG test <id>" >&2; exit 1; }; do_test "$1" ;;
+    submit) [ $# -lt 1 ] && { echo "Usage: $PROG submit <id>" >&2; exit 1; }; do_submit "$1" ;;
+    -h|--help|help) usage ;;
+    *)      echo "Unknown command: $cmd" >&2; usage; exit 1 ;;
+esac
