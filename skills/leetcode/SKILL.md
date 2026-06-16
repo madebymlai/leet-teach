@@ -52,7 +52,7 @@ Advance only when asked or clearly stuck.
 
 ## Teaching integration
 
-Use the **teach** skill for structured learning:
+Use the `/teach` skill for structured learning:
 - When a concept clicks, write a learning record (`learning-records/`)
 - Create interactive lessons in `lessons/` for complex topics
 - Update `GLOSSARY.md` with new terms
