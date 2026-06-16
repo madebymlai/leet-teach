@@ -1,10 +1,10 @@
 {
   "mcpServers": {
     "leetcode": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@jinzcdev/leetcode-mcp-server", "--site", "global"],
-      "env": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "-y", "@jinzcdev/leetcode-mcp-server", "--site", "global"],
+      "environment": {
         "LEETCODE_SITE": "global",
         "LEETCODE_SESSION": ""
       }
