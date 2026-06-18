@@ -3,28 +3,35 @@ set -euo pipefail
 
 export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+# Pinned versions (bump when upgrading)
+SKILLS_VERSION="latest"
+MCP_SERVER_VERSION="latest"
+MCP_SERVER_PACKAGE="@jinzcdev/leetcode-mcp-server"
+MCP_SITE="global"
 
 PROJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# TTY-guarded colors
+if [ -t 1 ]; then
+    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
+else
+    RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; NC=''
+fi
 
 info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
 ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
-err()   { echo -e "${RED}[ERROR]${NC} $*"; }
+err()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+die()   { err "$*"; exit 1; }
 
 check_cmd() {
     if command -v "$1" &>/dev/null; then
         ok "$1 found: $(command -v "$1")"
         return 0
-    else
-        warn "$1 not found"
-        return 1
     fi
+    warn "$1 not found"
+    return 1
 }
 
 install_helix() {
@@ -32,57 +39,40 @@ install_helix() {
     if command -v hx &>/dev/null; then
         ok "helix already installed: $(command -v hx)"
         return 0
-    elif command -v helix &>/dev/null; then
+    fi
+    if command -v helix &>/dev/null; then
         ok "helix already installed: $(command -v helix)"
-        # Symlink hx -> helix if not already present
-        if [ ! -e /usr/local/bin/hx ] && [ ! -e "$HOME/.local/bin/hx" ]; then
+        if [ ! -e "$HOME/.local/bin/hx" ]; then
             info "Creating hx symlink -> helix..."
             mkdir -p "$HOME/.local/bin"
             ln -sf "$(command -v helix)" "$HOME/.local/bin/hx"
             ok "Created $HOME/.local/bin/hx -> $(command -v helix)"
-            export PATH="$HOME/.local/bin:$PATH"
         fi
         return 0
     fi
-
     err "helix (hx/helix) not found."
     echo ""
-    echo -e "${YELLOW}Please install helix before running this script.${NC}"
-    echo -e "${YELLOW}Installation guide: https://docs.helix-editor.com/install.html${NC}"
-    echo ""
-    echo "Quick install options:"
+    echo "Install helix before running this script:"
     echo "  brew install helix"
     echo "  cargo install helix-term"
     echo "  sudo pacman -S helix"
     echo "  sudo dnf install helix"
-    echo "  Or download from: https://github.com/helix-editor/helix/releases"
-    echo ""
-    read -rp "Press Enter to exit, or type 'retry' after installing helix: " choice
-    if [ "$choice" = "retry" ]; then
-        if check_cmd hx; then
-            ok "helix found: $(command -v hx)"
-            return 0
-        else
-            err "helix still not found. Exiting."
-            exit 1
-        fi
-    else
-        exit 1
-    fi
+    echo "  https://github.com/helix-editor/helix/releases"
+    return 1
 }
 
 configure_helix() {
     info "Configuring helix for LeetCode..."
-    HELIX_CONFIG_DIR="$HOME/.config/helix"
+    local HELIX_CONFIG_DIR="$HOME/.config/helix"
     mkdir -p "$HELIX_CONFIG_DIR"
 
-    if [ -f "$HELIX_CONFIG_DIR/config.toml" ]; then
-        warn "helix config already exists at $HELIX_CONFIG_DIR/config.toml"
-        warn "Backing up to config.toml.bak"
-        cp "$HELIX_CONFIG_DIR/config.toml" "$HELIX_CONFIG_DIR/config.toml.bak"
-    fi
-
-    cat > "$HELIX_CONFIG_DIR/config.toml" << 'HELIXCONFIG'
+    if ! grep -q "# leet-teach-config" "$HELIX_CONFIG_DIR/config.toml" 2>/dev/null; then
+        if [ -f "$HELIX_CONFIG_DIR/config.toml" ]; then
+            warn "Backing up existing helix config.toml"
+            cp "$HELIX_CONFIG_DIR/config.toml" "$HELIX_CONFIG_DIR/config.toml.bak"
+        fi
+        cat > "$HELIX_CONFIG_DIR/config.toml" << 'HELIXCONFIG'
+# leet-teach-config
 [editor]
 line-number = "relative"
 mouse = true
@@ -108,12 +98,14 @@ display-messages = true
 auto-signature-help = true
 display-inlay-hints = true
 HELIXCONFIG
+        ok "helix config written to $HELIX_CONFIG_DIR/config.toml"
+    else
+        info "helix config.toml already managed by leet-teach, skipping"
+    fi
 
-    ok "helix config written to $HELIX_CONFIG_DIR/config.toml"
-
-    mkdir -p "$HELIX_CONFIG_DIR"
-    if [ ! -f "$HELIX_CONFIG_DIR/languages.toml" ] || ! grep -q "leetcode" "$HELIX_CONFIG_DIR/languages.toml" 2>/dev/null; then
+    if ! grep -q "# leet-teach-languages" "$HELIX_CONFIG_DIR/languages.toml" 2>/dev/null; then
         cat > "$HELIX_CONFIG_DIR/languages.toml" << 'LANGSCONFIG'
+# leet-teach-languages
 [language-server.pyright]
 command = "pyright-langserver"
 args = ["--stdio"]
@@ -158,15 +150,16 @@ name = "dart"
 language-servers = ["dart-language-server"]
 LANGSCONFIG
         ok "helix languages.toml written"
+    else
+        info "helix languages.toml already managed by leet-teach, skipping"
     fi
 }
 
 configure_tmux() {
     info "Configuring tmux..."
-    TMUX_CONFIG="$HOME/.tmux.conf"
+    local TMUX_CONFIG="$HOME/.tmux.conf"
     touch "$TMUX_CONFIG"
 
-    # Mouse support
     if ! grep -q "set -g mouse on" "$TMUX_CONFIG" 2>/dev/null; then
         echo "" >> "$TMUX_CONFIG"
         echo "# leet-teach: enable mouse" >> "$TMUX_CONFIG"
@@ -176,7 +169,6 @@ configure_tmux() {
         info "tmux mouse already enabled"
     fi
 
-    # Alt+arrow to switch panes (alongside Ctrl+B arrows)
     if ! grep -q "Alt-Up" "$TMUX_CONFIG" 2>/dev/null; then
         echo "" >> "$TMUX_CONFIG"
         echo "# leet-teach: Alt+arrow pane switching" >> "$TMUX_CONFIG"
@@ -189,9 +181,8 @@ configure_tmux() {
         info "Alt+arrow pane switching already configured"
     fi
 
-    # Reload tmux if running
     if [ -n "${TMUX:-}" ]; then
-        tmux source-file "$TMUX_CONFIG" 2>/dev/null && ok "tmux config reloaded" || warn "Could not reload tmux config (will apply on next session)"
+        tmux source-file "$TMUX_CONFIG" 2>/dev/null && ok "tmux config reloaded" || warn "Could not reload tmux config (applies on next session)"
     fi
 }
 
@@ -201,50 +192,50 @@ install_leetcode_cli() {
         info "leetcode-cli already installed, skipping"
         return 0
     fi
-
-    if check_cmd cargo; then
-        cargo install leetcode-cli
-    else
-        warn "cargo not found. Installing rustup..."
+    if ! check_cmd cargo; then
+        info "cargo not found, installing rustup..."
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         source "$HOME/.cargo/env"
-        cargo install leetcode-cli
     fi
-
-    if check_cmd leetcode; then
-        ok "leetcode-cli installed successfully"
-    else
-        err "Failed to install leetcode-cli. Install manually: cargo install leetcode-cli"
-        return 1
-    fi
+    cargo install leetcode-cli
+    check_cmd leetcode || die "failed to install leetcode-cli. Install manually: cargo install leetcode-cli"
+    ok "leetcode-cli installed successfully"
 }
 
 configure_leetcode_cli() {
     info "Configuring leetcode-cli..."
-    LC_DIR="$HOME/.leetcode"
+    local LC_DIR="$HOME/.leetcode"
     mkdir -p "$LC_DIR"
 
+    if grep -q "# leet-teach-config" "$LC_DIR/leetcode.toml" 2>/dev/null; then
+        info "leetcode.toml already managed by leet-teach, skipping"
+        info "Edit ~/.leetcode/leetcode.toml to change language/editor"
+        return 0
+    fi
+
     if [ -f "$LC_DIR/leetcode.toml" ]; then
-        warn "leetcode.toml already exists, backing up"
+        warn "Backing up existing leetcode.toml"
         cp "$LC_DIR/leetcode.toml" "$LC_DIR/leetcode.toml.bak"
     fi
 
-    local editor_cmd="hx"
+    local editor_cmd
     if command -v hx &>/dev/null; then
         editor_cmd="hx"
     elif command -v helix &>/dev/null; then
         editor_cmd="helix"
     elif [ -n "${EDITOR:-}" ]; then
         editor_cmd="$EDITOR"
+    else
+        die "no editor found. Set \$EDITOR or install helix before running setup."
     fi
 
     cat > "$LC_DIR/leetcode.toml" << LEETCODECONFIG
+# leet-teach-config
 [code]
 editor = '${editor_cmd}'
 lang = 'python3'
 edit_code_marker = true
 comment_problem_desc = true
-comment_leading = "#"
 inject_before = ["from typing import List, Optional, Dict, Set, Tuple"]
 inject_after = []
 test = true
@@ -270,152 +261,176 @@ install_mcp_server() {
     info "Setting up leetcode-mcp-server..."
     if check_cmd npx; then
         ok "npx found, MCP server will run via npx"
-    else
-        warn "npx not found. Installing Node.js..."
-        if check_cmd brew; then
-            brew install node
-        elif check_cmd apt-get; then
-            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-            sudo apt-get install -y nodejs
-        elif check_cmd pacman; then
-            sudo pacman -S --noconfirm nodejs npm
-        fi
+        return 0
     fi
-
-    ok "MCP server ready (runs via: npx -y @jinzcdev/leetcode-mcp-server)"
+    warn "npx not found. Installing Node.js..."
+    if check_cmd brew; then
+        brew install node
+    elif check_cmd apt-get; then
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    elif check_cmd pacman; then
+        sudo pacman -S --noconfirm nodejs npm
+    else
+        die "no supported package manager found (brew/apt/pacman). Install Node.js manually: https://nodejs.org/"
+    fi
+    export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+    check_cmd npx || die "npx still not found after Node.js install. Install manually: https://nodejs.org/"
+    ok "npx available, MCP server will run via npx"
 }
 
-configure_mcp() {
-    info "Configuring MCP for Claude, Codex, and OpenCode..."
+write_mcp_claude() {
+    local path="$1"
+    [ -f "$path" ] && { warn "Backing up Claude Desktop config"; cp "$path" "$path.bak"; }
+    export LEET_MCP_CONFIG_PATH="$path"
+    python3 << 'PY'
+import json, os
+path = os.environ['LEET_MCP_CONFIG_PATH']
+pkg = f"{os.environ['LEET_MCP_PACKAGE']}@{os.environ['LEET_MCP_VERSION']}"
+site = os.environ['LEET_MCP_SITE']
+cfg = {}
+if os.path.exists(path):
+    with open(path) as f:
+        cfg = json.load(f)
+servers = cfg.setdefault('mcpServers', {})
+servers['leetcode'] = {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", pkg, "--site", site],
+    "env": {"LEETCODE_SITE": site, "LEETCODE_SESSION": ""},
+}
+with open(path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+PY
+    ok "Claude Desktop MCP config written (leetcode server merged)"
+}
 
-    local mcp_cmd="npx"
-    local mcp_args='-y @jinzcdev/leetcode-mcp-server --site global'
-
-    # --- Claude Desktop ---
-    CLAUDE_CONFIG_DIR="$HOME/.config/claude"
-    mkdir -p "$CLAUDE_CONFIG_DIR"
-    if [ -f "$CLAUDE_CONFIG_DIR/claude_desktop_config.json" ]; then
-        warn "Claude Desktop config exists, backing up"
-        cp "$CLAUDE_CONFIG_DIR/claude_desktop_config.json" "$CLAUDE_CONFIG_DIR/claude_desktop_config.json.bak"
+write_mcp_codex() {
+    local path="$1"
+    if [ -f "$path" ] && grep -q "mcp_servers.leetcode" "$path" 2>/dev/null; then
+        info "Codex leetcode MCP already configured, skipping"
+        return 0
     fi
+    cat >> "$path" << CODEXMCP
 
-    cat > "$CLAUDE_CONFIG_DIR/claude_desktop_config.json" << CLAUDEMCP
+# leet-teach: leetcode MCP server
+[mcp_servers.leetcode]
+command = "npx"
+args = ["-y", "${MCP_SERVER_PACKAGE}@${MCP_SERVER_VERSION}", "--site", "${MCP_SITE}"]
+
+[mcp_servers.leetcode.env]
+LEETCODE_SITE = "${MCP_SITE}"
+LEETCODE_SESSION = ""
+CODEXMCP
+    ok "Codex MCP config added to $path"
+}
+
+write_mcp_opencode() {
+    local path="$1"
+    [ -f "$path" ] && { warn "Backing up OpenCode config"; cp "$path" "$path.bak"; }
+    export LEET_MCP_CONFIG_PATH="$path"
+    python3 << 'PY'
+import json, os
+path = os.environ['LEET_MCP_CONFIG_PATH']
+pkg = f"{os.environ['LEET_MCP_PACKAGE']}@{os.environ['LEET_MCP_VERSION']}"
+site = os.environ['LEET_MCP_SITE']
+cfg = {}
+if os.path.exists(path):
+    with open(path) as f:
+        cfg = json.load(f)
+mcp = cfg.setdefault('mcp', {})
+mcp['leetcode'] = {
+    "type": "local",
+    "enabled": True,
+    "command": ["npx", "-y", pkg, "--site", site],
+    "environment": {"LEETCODE_SITE": site, "LEETCODE_SESSION": ""},
+}
+with open(path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+PY
+    ok "OpenCode MCP config written (leetcode server merged)"
+}
+
+write_mcp_templates() {
+    info "Refreshing MCP config templates in $PROJ_DIR/mcp-configs/"
+    local pkg="${MCP_SERVER_PACKAGE}@${MCP_SERVER_VERSION}"
+    cat > "$PROJ_DIR/mcp-configs/claude-desktop.json" << EOF
 {
   "mcpServers": {
     "leetcode": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@jinzcdev/leetcode-mcp-server", "--site", "global"],
+      "args": ["-y", "${pkg}", "--site", "${MCP_SITE}"],
       "env": {
-        "LEETCODE_SITE": "global",
+        "LEETCODE_SITE": "${MCP_SITE}",
         "LEETCODE_SESSION": ""
       }
     }
   }
 }
-CLAUDEMCP
-    ok "Claude Desktop MCP config written"
-
-    # --- Codex ---
-    CODEX_CONFIG_DIR="$HOME/.codex"
-    mkdir -p "$CODEX_CONFIG_DIR"
-    CODEX_CONFIG="$CODEX_CONFIG_DIR/config.toml"
-    if [ -f "$CODEX_CONFIG" ] && grep -q "mcp_servers.leetcode" "$CODEX_CONFIG" 2>/dev/null; then
-        info "Codex leetcode MCP already configured, skipping"
-    else
-        cat >> "$CODEX_CONFIG" << 'CODEXMCP'
+EOF
+    cat > "$PROJ_DIR/mcp-configs/codex.toml" << EOF
+# Add to ~/.codex/config.toml
+# Codex uses TOML for MCP config, not JSON
 
 [mcp_servers.leetcode]
 command = "npx"
-args = ["-y", "@jinzcdev/leetcode-mcp-server", "--site", "global"]
+args = ["-y", "${pkg}", "--site", "${MCP_SITE}"]
 
 [mcp_servers.leetcode.env]
-LEETCODE_SITE = "global"
+LEETCODE_SITE = "${MCP_SITE}"
 LEETCODE_SESSION = ""
-CODEXMCP
-        ok "Codex MCP config added to $CODEX_CONFIG"
-    fi
-
-    # --- OpenCode ---
-    OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
-    mkdir -p "$OPENCODE_CONFIG_DIR"
-    if [ -f "$OPENCODE_CONFIG_DIR/config.json" ]; then
-        warn "OpenCode config exists, backing up"
-        cp "$OPENCODE_CONFIG_DIR/config.json" "$OPENCODE_CONFIG_DIR/config.json.bak"
-    fi
-
-    python3 -c "
-import json, os
-cfg = {}
-path = '$OPENCODE_CONFIG_DIR/config.json'
-if os.path.exists(path):
-    with open(path) as f:
-        cfg = json.load(f)
-mcp = cfg.get('mcp', {})
-mcp['leetcode'] = {
-    'type': 'local',
-    'enabled': True,
-    'command': ['npx', '-y', '@jinzcdev/leetcode-mcp-server', '--site', 'global'],
-    'environment': {
-        'LEETCODE_SITE': 'global',
-        'LEETCODE_SESSION': ''
+EOF
+    cat > "$PROJ_DIR/mcp-configs/opencode.json" << EOF
+{
+  "mcp": {
+    "leetcode": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "-y", "${pkg}", "--site", "${MCP_SITE}"],
+      "environment": {
+        "LEETCODE_SITE": "${MCP_SITE}",
+        "LEETCODE_SESSION": ""
+      }
     }
+  }
 }
-cfg['mcp'] = mcp
-with open(path, 'w') as f:
-    json.dump(cfg, f, indent=2)
-" 2>/dev/null || warn "Could not update OpenCode config automatically — see mcp-configs/opencode.json for manual setup"
+EOF
+    ok "MCP config templates refreshed"
+}
 
-    ok "OpenCode MCP config written"
+configure_mcp() {
+    info "Configuring MCP for Claude, Codex, and OpenCode..."
+    command -v python3 >/dev/null || die "python3 required to merge MCP configs"
+    export LEET_MCP_PACKAGE="$MCP_SERVER_PACKAGE" LEET_MCP_VERSION="$MCP_SERVER_VERSION" LEET_MCP_SITE="$MCP_SITE"
 
-    # Also copy template configs to project
-    cp "$PROJ_DIR/mcp-configs/claude-desktop.json" "$PROJ_DIR/mcp-configs/claude-desktop.json.bak" 2>/dev/null || true
-    info "MCP config templates saved to $PROJ_DIR/mcp-configs/"
+    mkdir -p "$HOME/.config/claude" "$HOME/.codex" "$HOME/.config/opencode"
+    write_mcp_claude   "$HOME/.config/claude/claude_desktop_config.json"
+    write_mcp_codex    "$HOME/.codex/config.toml"
+    write_mcp_opencode "$HOME/.config/opencode/config.json"
+    write_mcp_templates
+
     info ""
     warn "IMPORTANT: Set your LEETCODE_SESSION cookie in the config files!"
-    info "  1. Log in to https://leetcode.com in Firefox"
-    info "  2. Open DevTools (F12) → Storage → Cookies"
+    info "  1. Log in to https://leetcode.com in your browser"
+    info "  2. Open DevTools (F12) → Application → Cookies"
     info "  3. Copy the LEETCODE_SESSION value"
-    info "  4. Set it in: ~/.config/claude/claude_desktop_config.json"
-    info "     or run: leetcode data -c"
+    info "  4. Set it in the MCP configs, or run: leetcode data -c"
+}
+
+install_skill() {
+    local repo="$1" name="$2"
+    info "Installing $name skill from $repo..."
+    npx "skills@${SKILLS_VERSION}" add "$repo" --skill "$name" -y \
+        || die "failed to install $name skill from $repo"
 }
 
 install_skills() {
     info "Installing skills (mattpocock/teach + local leetcode skill)..."
-
     cd "$PROJ_DIR"
-
-    if ! check_cmd npx; then
-        err "npx not found. Cannot install skills. Install Node.js first: https://nodejs.org/"
-        return 1
-    fi
-
-    # Install mattpocock teach skill (project-local, not -g)
-    info "Installing mattpocock/skills teach skill (project-local)..."
-    npx skills@latest add mattpocock/skills --skill teach -y 2>/dev/null || {
-        warn "npx skills add failed, trying manual setup..."
-        mkdir -p "$PROJ_DIR/.skills/teach"
-        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/SKILL.md" \
-            -o "$PROJ_DIR/.skills/teach/SKILL.md"
-        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/MISSION-FORMAT.md" \
-            -o "$PROJ_DIR/.skills/teach/MISSION-FORMAT.md"
-        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/LEARNING-RECORD-FORMAT.md" \
-            -o "$PROJ_DIR/.skills/teach/LEARNING-RECORD-FORMAT.md"
-        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/RESOURCES-FORMAT.md" \
-            -o "$PROJ_DIR/.skills/teach/RESOURCES-FORMAT.md"
-        curl -fsSL "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/teach/GLOSSARY-FORMAT.md" \
-            -o "$PROJ_DIR/.skills/teach/GLOSSARY-FORMAT.md"
-        ok "teach skill files downloaded manually to .skills/teach/"
-    }
-
-    # Install the leetcode skill from GitHub
-    info "Installing leetcode skill from GitHub..."
-    npx skills@latest add madebymlai/leet-teach --skill leetcode -y 2>/dev/null || {
-        warn "Could not install leetcode skill from GitHub."
-        warn "The skill is available at skills/leetcode/SKILL.md"
-        warn "Install manually: npx skills@latest add madebymlai/leet-teach --skill leetcode"
-    }
-
+    command -v npx >/dev/null || die "npx not found. Install Node.js first: https://nodejs.org/"
+    install_skill mattpocock/skills teach
+    install_skill madebymlai/leet-teach leetcode
     ok "Skills setup complete"
 }
 
@@ -440,15 +455,15 @@ main() {
         echo ""
         info "=== Step: $step ==="
         case "$step" in
-            helix)         install_helix || failed+=("$step") ;;
-            helix-config)  configure_helix || failed+=("$step") ;;
-            tmux-config)   configure_tmux || failed+=("$step") ;;
-            leetcode-cli)  install_leetcode_cli || failed+=("$step") ;;
+            helix)           install_helix || failed+=("$step") ;;
+            helix-config)    configure_helix || failed+=("$step") ;;
+            tmux-config)     configure_tmux || failed+=("$step") ;;
+            leetcode-cli)    install_leetcode_cli || failed+=("$step") ;;
             leetcode-config) configure_leetcode_cli || failed+=("$step") ;;
-            mcp-install)   install_mcp_server || failed+=("$step") ;;
-            mcp-config)    configure_mcp || failed+=("$step") ;;
-            skills)        install_skills || failed+=("$step") ;;
-            project)       setup_project || failed+=("$step") ;;
+            mcp-install)     install_mcp_server || failed+=("$step") ;;
+            mcp-config)      configure_mcp || failed+=("$step") ;;
+            skills)          install_skills || failed+=("$step") ;;
+            project)         setup_project || failed+=("$step") ;;
         esac
     done
 
@@ -467,12 +482,12 @@ main() {
     echo "  1. Set your LeetCode cookies:  leetcode data -c"
     echo "  2. Edit MCP session cookie in:"
     echo "     ~/.config/claude/claude_desktop_config.json"
-    echo "     ~/.codex/mcp.json"
+    echo "     ~/.codex/config.toml"
     echo "     ~/.config/opencode/config.json"
-    echo "  3. Pick a problem:             leetcode pick two-sum"
-    echo "  4. Edit in helix:              leetcode edit 1"
-    echo "  5. Test:                       leetcode test 1"
-    echo "  6. Submit:                      leetcode exec 1"
+    echo "  3. Pick a problem:             leet pick two-sum"
+    echo "  4. Edit in helix:              leet edit 1"
+    echo "  5. Test:                       leet test 1"
+    echo "  6. Submit:                     leet submit 1"
     echo ""
     echo -e "${YELLOW}Or let your AI coach handle it via MCP tools.${NC}"
 }

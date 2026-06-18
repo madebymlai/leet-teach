@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-PROG="$(basename "$0")"
-LEET_PANE_ID_FILE="/tmp/leet-edit-pane"
+# leet — LeetCode + tmux workflow wrapper.
+# Strict mode + dispatch run only when executed, not when sourced (for tests).
+PROG="$(basename "${0}")"
+LEET_PANE_OPTION="@leet_edit_pane"
 
 usage() {
     cat <<EOF
@@ -11,18 +11,18 @@ Usage: $PROG <command> [args]
 LeetCode + tmux workflow wrapper.
 
 Commands:
-  pick <id>        Pick a problem, then open it in the helix pane
+  pick <slug>      Pick a problem, then open it in the helix pane
   edit <id>        Open problem in helix pane (reuses existing pane)
   test <id>        Test solution (runs in current pane)
   submit <id>      Submit solution (runs in current pane)
   close            Close the helix pane
 
 Examples:
-  $PROG pick 1            # Pick problem 1 + open in helix pane
-  $PROG edit 1             # Switch to problem 1 in existing helix pane
-  $PROG test 1             # Run tests
-  $PROG submit 1           # Submit solution
-  $PROG close              # Close helix pane
+  $PROG pick two-sum    # Pick problem + open in helix pane
+  $PROG edit 1          # Switch to problem 1 in existing helix pane
+  $PROG test 1          # Run tests
+  $PROG submit 1        # Submit solution
+  $PROG close           # Close helix pane
 
 Tmux layout:
   Left:  AI agent session (opencode/claude/codex)
@@ -30,74 +30,103 @@ Tmux layout:
 EOF
 }
 
-check_tmux() {
-    if ! command -v tmux &>/dev/null; then
-        echo "Error: tmux not found. Install: sudo pacman -S tmux" >&2
-        exit 1
-    fi
-    if [ -z "${TMUX:-}" ]; then
-        echo "Error: not inside a tmux session. Start one with: tmux" >&2
-        exit 1
-    fi
+die() { echo "$PROG: $*" >&2; exit 1; }
+
+# --- pure helpers (no I/O, testable) ---
+
+parse_problem_id() {
+    local output="$1"
+    [[ $output =~ \[([0-9]+)\] ]] || return 1
+    printf '%s\n' "${BASH_REMATCH[1]}"
 }
 
-pane_exists() {
-    [ -f "$LEET_PANE_ID_FILE" ] || return 1
-    local pane_id
-    pane_id=$(cat "$LEET_PANE_ID_FILE")
-    tmux list-panes -F '#{pane_id}' 2>/dev/null | grep -q "^${pane_id}$"
+session_is_set() {
+    local content="$1"
+    grep -qE "^[[:space:]]*session *= *['\"][^'\"]+['\"]" <<< "$content"
 }
+
+# --- tmux queries ---
+
+check_tmux() {
+    command -v tmux >/dev/null || die "tmux not found. Install: sudo pacman -S tmux"
+    [ -n "${TMUX:-}" ] || die "not inside a tmux session. Start one with: tmux"
+}
+
+require_leetcode() {
+    command -v leetcode >/dev/null || die "leetcode-cli not found. Run scripts/setup.sh first."
+}
+
+current_session() {
+    tmux display-message -p '#{session_name}'
+}
+
+stored_pane_id() {
+    local session="$1" pane_id
+    pane_id=$(tmux show-options -t "$session" -v "$LEET_PANE_OPTION" 2>/dev/null) || return 0
+    printf '%s' "$pane_id"
+}
+
+pane_alive() {
+    local session="$1" pane_id="$2"
+    [ -n "$pane_id" ] && tmux list-panes -t "$session" -F '#{pane_id}' 2>/dev/null | grep -qx "$pane_id"
+}
+
+check_cookies() {
+    local toml="$HOME/.leetcode/leetcode.toml"
+    [ -f "$toml" ] || die "leetcode.toml not found at $toml. Run scripts/setup.sh first."
+    session_is_set "$(cat "$toml")" || die "LeetCode session cookie not set. Run: leetcode data -c"
+}
+
+# --- commands ---
 
 pane_edit() {
-    local id="$1"
+    local id="$1" session pane_id
     check_tmux
-    if pane_exists; then
-        local pane_id
-        pane_id=$(cat "$LEET_PANE_ID_FILE")
-        tmux send-keys -t "$pane_id" Escape ':q!' Enter 2>/dev/null || true
-        sleep 0.3
+    require_leetcode
+    session=$(current_session)
+    pane_id=$(stored_pane_id "$session")
+    if pane_alive "$session" "$pane_id"; then
+        local cur_cmd
+        cur_cmd=$(tmux display-message -p -t "$pane_id" '#{pane_current_command}')
+        case "$cur_cmd" in
+            hx|helix)
+                tmux send-keys -t "$pane_id" Escape ':q!' Enter
+                sleep 0.3
+                ;;
+            *)
+                tmux send-keys -t "$pane_id" C-c
+                sleep 0.2
+                ;;
+        esac
         tmux send-keys -t "$pane_id" "leetcode edit $id" Enter
     else
-        local pane_id
         pane_id=$(tmux split-window -h -P -F '#{pane_id}' "bash -c 'leetcode edit $id; exec bash'")
-        echo "$pane_id" > "$LEET_PANE_ID_FILE"
+        tmux set-option -t "$session" "$LEET_PANE_OPTION" "$pane_id"
     fi
 }
 
 close_pane() {
     check_tmux
-    if pane_exists; then
-        local pane_id
-        pane_id=$(cat "$LEET_PANE_ID_FILE")
-        tmux kill-pane -t "$pane_id" 2>/dev/null || true
-        rm -f "$LEET_PANE_ID_FILE"
+    local session pane_id
+    session=$(current_session)
+    pane_id=$(stored_pane_id "$session")
+    if pane_alive "$session" "$pane_id"; then
+        tmux kill-pane -t "$pane_id"
         echo "Closed leet-edit pane"
     else
-        rm -f "$LEET_PANE_ID_FILE"
         echo "No leet-edit pane found"
+    fi
+    if [ -n "$pane_id" ]; then
+        tmux set-option -t "$session" -u "$LEET_PANE_OPTION"
     fi
 }
 
 do_pick() {
-    local slug="$1"
-    local output
-    output=$(leetcode pick "$slug" 2>&1) || {
-        echo "$output"
-        echo "Error: leetcode pick failed" >&2
-        exit 1
-    }
+    local slug="$1" output id
+    require_leetcode
+    output=$(leetcode pick "$slug" 2>&1) || { echo "$output" >&2; die "leetcode pick failed"; }
     echo "$output"
-
-    local id
-    id=$(echo "$output" | grep -oP '\[\d+\]' | head -1 | grep -oP '\d+')
-    if [ -z "$id" ]; then
-        id=$(echo "$output" | grep -oP '^\d+' | head -1)
-    fi
-    if [ -z "$id" ]; then
-        echo "Warning: could not parse problem ID, use 'leet edit <id>' manually"
-        return 0
-    fi
-
+    id=$(parse_problem_id "$output") || die "could not parse problem ID from leetcode output; use '$PROG edit <id>' manually"
     echo ""
     echo "Opening problem $id in helix pane..."
     pane_edit "$id"
@@ -105,28 +134,35 @@ do_pick() {
 
 do_test() {
     local id="$1"
+    require_leetcode
+    check_cookies
     leetcode test "$id"
 }
 
 do_submit() {
     local id="$1"
+    require_leetcode
+    check_cookies
     leetcode exec "$id"
 }
 
-if [ $# -lt 1 ]; then
-    usage
-    exit 1
+# --- execute guard (skipped when sourced for tests) ---
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    set -euo pipefail
+    if [ $# -lt 1 ]; then
+        usage
+        exit 1
+    fi
+    cmd="$1"
+    shift
+    case "$cmd" in
+        pick)   [ $# -lt 1 ] && die "Usage: $PROG pick <slug>"; do_pick "$1" ;;
+        edit)   [ $# -lt 1 ] && die "Usage: $PROG edit <id>"; pane_edit "$1" ;;
+        test)   [ $# -lt 1 ] && die "Usage: $PROG test <id>"; do_test "$1" ;;
+        submit) [ $# -lt 1 ] && die "Usage: $PROG submit <id>"; do_submit "$1" ;;
+        close)  close_pane ;;
+        -h|--help|help) usage ;;
+        *)      die "Unknown command: $cmd (see: $PROG --help)" ;;
+    esac
 fi
-
-cmd="$1"
-shift
-
-case "$cmd" in
-    pick)   [ $# -lt 1 ] && { echo "Usage: $PROG pick <id>" >&2; exit 1; }; do_pick "$1" ;;
-    edit)   [ $# -lt 1 ] && { echo "Usage: $PROG edit <id>" >&2; exit 1; }; pane_edit "$1" ;;
-    test)   [ $# -lt 1 ] && { echo "Usage: $PROG test <id>" >&2; exit 1; }; do_test "$1" ;;
-    submit) [ $# -lt 1 ] && { echo "Usage: $PROG submit <id>" >&2; exit 1; }; do_submit "$1" ;;
-    close)  close_pane ;;
-    -h|--help|help) usage ;;
-    *)      echo "Unknown command: $cmd" >&2; usage; exit 1 ;;
-esac

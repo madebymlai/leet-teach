@@ -27,7 +27,7 @@ This installs and configures:
 
 2. Set your LeetCode session in MCP configs:
    - `~/.config/claude/claude_desktop_config.json`
-   - `~/.codex/mcp.json`
+   - `~/.codex/config.toml`
    - `~/.config/opencode/config.json`
 
 3. Pick a problem and start:

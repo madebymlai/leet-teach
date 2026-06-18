@@ -3,7 +3,7 @@
     "leetcode": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@jinzcdev/leetcode-mcp-server", "--site", "global"],
+      "args": ["-y", "@jinzcdev/leetcode-mcp-server@latest", "--site", "global"],
       "env": {
         "LEETCODE_SITE": "global",
         "LEETCODE_SESSION": ""

@@ -3,7 +3,7 @@
 
 [mcp_servers.leetcode]
 command = "npx"
-args = ["-y", "@jinzcdev/leetcode-mcp-server", "--site", "global"]
+args = ["-y", "@jinzcdev/leetcode-mcp-server@latest", "--site", "global"]
 
 [mcp_servers.leetcode.env]
 LEETCODE_SITE = "global"
