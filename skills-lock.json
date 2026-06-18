@@ -5,13 +5,13 @@
       "source": "madebymlai/leet-teach",
       "sourceType": "github",
       "skillPath": "skills/leetcode/SKILL.md",
-      "computedHash": "05a0acd5c807b1db44f70d6cc728237be48c73b2aff6ce8ddbf7654bd0493302"
+      "computedHash": "fdba3867c2076e3c091a10cff5161a1ba62878e31c978c509c4ff73a6d26d90d"
     },
     "teach": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/productivity/teach/SKILL.md",
-      "computedHash": "9bbda5627df9d1d46082c7d839f53a04b2a884451f7f7c45fc9860d852b19453"
+      "computedHash": "9cd31ea42b40915ea5fd3949ed229b217d1dfad07dd93d9b0db771dcdd6a6c8a"
     }
   }
 }
