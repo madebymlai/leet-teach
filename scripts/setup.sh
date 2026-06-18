@@ -225,6 +225,14 @@ configure_leetcode_cli() {
         cp "$LC_DIR/leetcode.toml" "$LC_DIR/leetcode.toml.bak"
     fi
 
+    # Preserve existing session/csrf/site from old config (if any)
+    local existing_session="" existing_csrf="" existing_site="leetcode.com"
+    if [ -f "$LC_DIR/leetcode.toml.bak" ]; then
+        existing_session=$(sed -nE "s/^[[:space:]]*session[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$LC_DIR/leetcode.toml.bak" | head -1)
+        existing_csrf=$(sed -nE "s/^[[:space:]]*csrf[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$LC_DIR/leetcode.toml.bak" | head -1)
+        existing_site=$(sed -nE "s/^[[:space:]]*site[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$LC_DIR/leetcode.toml.bak" | head -1)
+    fi
+
     local editor_cmd
     if command -v hx &>/dev/null; then
         editor_cmd="hx"
@@ -258,9 +266,9 @@ inject_after = []
 test = true
 
 [cookies]
-csrf = ''
-session = ''
-site = 'leetcode.com'
+csrf = '${existing_csrf}'
+session = '${existing_session}'
+site = '${existing_site}'
 
 [storage]
 cache = 'Problems'
@@ -327,9 +335,14 @@ PY
 
 write_mcp_codex() {
     local path="$1"
-    if [ -f "$path" ] && grep -q "mcp_servers.leetcode" "$path" 2>/dev/null; then
-        info "Codex leetcode MCP already configured, skipping"
-        return 0
+    if [ -f "$path" ]; then
+        # Remove old leetcode MCP entries (headers + their body lines until next section/EOF)
+        awk '
+            /^\[mcp_servers\.leetcode/ { skip=1; next }
+            skip && /^\[/ && !/^\[mcp_servers\.leetcode/ { skip=0 }
+            skip { next }
+            { print }
+        ' "$path" > "$path.tmp" && mv "$path.tmp" "$path"
     fi
     cat >> "$path" << CODEXMCP
 
@@ -337,7 +350,7 @@ write_mcp_codex() {
 [mcp_servers.leetcode]
 command = "${LEET_MCP_LAUNCHER}"
 CODEXMCP
-    ok "Codex MCP config added to $path"
+    ok "Codex MCP config written to $path"
 }
 
 write_mcp_opencode() {
