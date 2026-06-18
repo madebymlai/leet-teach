@@ -1,10 +1,5 @@
 # Add to ~/.codex/config.toml
-# Codex uses TOML for MCP config, not JSON
+# The launcher reads the session from ~/.leetcode/leetcode.toml at runtime.
 
 [mcp_servers.leetcode]
-command = "npx"
-args = ["-y", "@jinzcdev/leetcode-mcp-server@latest", "--site", "global"]
-
-[mcp_servers.leetcode.env]
-LEETCODE_SITE = "global"
-LEETCODE_SESSION = ""
+command = "~/.local/bin/leetcode-mcp"

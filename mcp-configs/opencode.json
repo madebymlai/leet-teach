@@ -3,11 +3,7 @@
     "leetcode": {
       "type": "local",
       "enabled": true,
-      "command": ["npx", "-y", "@jinzcdev/leetcode-mcp-server@latest", "--site", "global"],
-      "environment": {
-        "LEETCODE_SITE": "global",
-        "LEETCODE_SESSION": ""
-      }
+      "command": ["~/.local/bin/leetcode-mcp"]
     }
   }
 }

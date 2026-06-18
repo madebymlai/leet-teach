@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# leetcode-mcp — launcher that reads the LeetCode session from ~/.leetcode/leetcode.toml
+# (single source of truth) and execs the MCP server. MCP configs point to this script,
+# never to the cookie value directly.
+
+# --- pure helpers (no I/O, testable) ---
+
+extract_toml_value() {
+    local content="$1" key="$2"
+    sed -nE "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" <<< "$content" | head -1
+}
+
+map_site() {
+    local site_raw="$1"
+    case "$site_raw" in
+        leetcode.cn|cn) printf 'cn' ;;
+        *)              printf 'global' ;;
+    esac
+}
+
+# --- execute guard (skipped when sourced for tests) ---
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    set -euo pipefail
+
+    LC_TOML="${LEETCODE_TOML:-$HOME/.leetcode/leetcode.toml}"
+
+    [ -f "$LC_TOML" ] || {
+        echo "leetcode-mcp: $LC_TOML not found. Run scripts/setup.sh first." >&2
+        exit 1
+    }
+
+    content=$(cat "$LC_TOML")
+    session=$(extract_toml_value "$content" "session")
+
+    [ -n "$session" ] || {
+        echo "leetcode-mcp: session cookie not set in $LC_TOML. Run: leetcode data -c" >&2
+        exit 1
+    }
+
+    site_raw=$(extract_toml_value "$content" "site")
+    mcp_site=$(map_site "$site_raw")
+
+    export LEETCODE_SESSION="$session"
+    export LEETCODE_SITE="$mcp_site"
+    exec npx -y @jinzcdev/leetcode-mcp-server@latest --site "$mcp_site"
+fi
