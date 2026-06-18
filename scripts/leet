@@ -3,6 +3,9 @@
 # Strict mode + dispatch run only when executed, not when sourced (for tests).
 PROG="$(basename "${0}")"
 LEET_PANE_OPTION="@leet_edit_pane"
+LEET_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=leet-languages.sh
+source "$LEET_DIR/leet-languages.sh"
 
 usage() {
     cat <<EOF
@@ -15,6 +18,7 @@ Commands:
   edit <id>        Open problem in helix pane (reuses existing pane)
   test <id>        Test solution (runs in current pane)
   submit <id>      Submit solution (runs in current pane)
+  lang [name]      Show/choose problem language (picker if no arg)
   close            Close the helix pane
 
 Examples:
@@ -22,6 +26,8 @@ Examples:
   $PROG edit 1          # Switch to problem 1 in existing helix pane
   $PROG test 1          # Run tests
   $PROG submit 1        # Submit solution
+  $PROG lang            # Pick language from menu
+  $PROG lang rust       # Set language to rust
   $PROG close           # Close helix pane
 
 Tmux layout:
@@ -146,6 +152,36 @@ do_submit() {
     leetcode exec "$id"
 }
 
+do_lang() {
+    local chosen="${1:-}" helix_name toml content current
+    require_leetcode
+    toml="$HOME/.leetcode/leetcode.toml"
+    [ -f "$toml" ] || die "leetcode.toml not found. Run scripts/setup.sh first."
+    content=$(cat "$toml")
+    current=$(current_lang "$content")
+
+    if [ -z "$chosen" ]; then
+        echo "Current language: ${current:-not set}"
+        echo "Supported: ${SUPPORTED_LANGS}"
+        echo ""
+        PS3="Choose language (number): "
+        select helix_name in $SUPPORTED_LANGS; do
+            [ -n "$helix_name" ] && break
+            echo "Invalid choice."
+        done
+        [ -n "$helix_name" ] || die "no language selected"
+    else
+        helix_name="$chosen"
+    fi
+
+    lang_info "$helix_name" || die "unsupported language: $helix_name. Supported: $SUPPORTED_LANGS"
+
+    local updated
+    updated=$(apply_lang_to_toml "$content" "$LC_LANG" "$LC_INJECT_BEFORE" "$LC_COMMENT_LEADING")
+    printf '%s\n' "$updated" > "$toml"
+    echo "Language set to $helix_name (leetcode: $LC_LANG, comment: $LC_COMMENT_LEADING)"
+}
+
 # --- execute guard (skipped when sourced for tests) ---
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -161,6 +197,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         edit)   [ $# -lt 1 ] && die "Usage: $PROG edit <id>"; pane_edit "$1" ;;
         test)   [ $# -lt 1 ] && die "Usage: $PROG test <id>"; do_test "$1" ;;
         submit) [ $# -lt 1 ] && die "Usage: $PROG submit <id>"; do_submit "$1" ;;
+        lang)   do_lang "${1:-}" ;;
         close)  close_pane ;;
         -h|--help|help) usage ;;
         *)      die "Unknown command: $cmd (see: $PROG --help)" ;;

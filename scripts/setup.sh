@@ -5,11 +5,10 @@ export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 
 # Pinned versions (bump when upgrading)
 SKILLS_VERSION="latest"
-MCP_SERVER_VERSION="latest"
-MCP_SERVER_PACKAGE="@jinzcdev/leetcode-mcp-server"
-MCP_SITE="global"
 
 PROJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=leet-languages.sh
+source "$PROJ_DIR/scripts/leet-languages.sh"
 
 # TTY-guarded colors
 if [ -t 1 ]; then
@@ -119,6 +118,9 @@ command = "clangd"
 [language-server.jdtls]
 command = "jdtls"
 
+[language-server.gopls]
+command = "gopls"
+
 [language-server.dart-language-server]
 command = "dart"
 args = ["language-server", "--client-id", "helix"]
@@ -144,6 +146,10 @@ language-servers = ["clangd"]
 [[language]]
 name = "java"
 language-servers = ["jdtls"]
+
+[[language]]
+name = "go"
+language-servers = ["gopls"]
 
 [[language]]
 name = "dart"
@@ -209,7 +215,8 @@ configure_leetcode_cli() {
 
     if grep -q "# leet-teach-config" "$LC_DIR/leetcode.toml" 2>/dev/null; then
         info "leetcode.toml already managed by leet-teach, skipping"
-        info "Edit ~/.leetcode/leetcode.toml to change language/editor"
+        info "Change language with: leet lang <name>"
+        info "Edit ~/.leetcode/leetcode.toml for other settings"
         return 0
     fi
 
@@ -229,14 +236,24 @@ configure_leetcode_cli() {
         die "no editor found. Set \$EDITOR or install helix before running setup."
     fi
 
+    info "Choose your preferred language (default: python)"
+    info "Supported: ${SUPPORTED_LANGS}"
+    local chosen="python"
+    if [ -t 0 ]; then
+        read -rp "Language [python]: " chosen
+        chosen="${chosen:-python}"
+    fi
+    lang_info "$chosen" || die "unsupported language: $chosen. Supported: $SUPPORTED_LANGS"
+
     cat > "$LC_DIR/leetcode.toml" << LEETCODECONFIG
 # leet-teach-config
 [code]
 editor = '${editor_cmd}'
-lang = 'python3'
+lang = '${LC_LANG}'
 edit_code_marker = true
 comment_problem_desc = true
-inject_before = ["from typing import List, Optional, Dict, Set, Tuple"]
+comment_leading = "${LC_COMMENT_LEADING}"
+inject_before = ${LC_INJECT_BEFORE}
 inject_after = []
 test = true
 
@@ -252,8 +269,8 @@ root = '~/.leetcode'
 scripts = 'scripts'
 LEETCODECONFIG
 
-    ok "leetcode-cli config written to $LC_DIR/leetcode.toml"
-    info "Set your preferred language in ~/.leetcode/leetcode.toml [code] lang"
+    ok "leetcode-cli config written to $LC_DIR/leetcode.toml (lang: $chosen)"
+    info "Change language later with: leet lang <name>"
     info "Set your cookies by running: leetcode data -c"
 }
 
@@ -279,6 +296,15 @@ install_mcp_server() {
     ok "npx available, MCP server will run via npx"
 }
 
+install_mcp_launcher() {
+    info "Installing leetcode-mcp launcher..."
+    mkdir -p "$HOME/.local/bin"
+    local launcher_dst="$HOME/.local/bin/leetcode-mcp"
+    cp "$PROJ_DIR/scripts/leetcode-mcp" "$launcher_dst"
+    chmod +x "$launcher_dst"
+    ok "launcher installed at $launcher_dst"
+}
+
 write_mcp_claude() {
     local path="$1"
     [ -f "$path" ] && { warn "Backing up Claude Desktop config"; cp "$path" "$path.bak"; }
@@ -286,19 +312,13 @@ write_mcp_claude() {
     python3 << 'PY'
 import json, os
 path = os.environ['LEET_MCP_CONFIG_PATH']
-pkg = f"{os.environ['LEET_MCP_PACKAGE']}@{os.environ['LEET_MCP_VERSION']}"
-site = os.environ['LEET_MCP_SITE']
+launcher = os.environ['LEET_MCP_LAUNCHER']
 cfg = {}
 if os.path.exists(path):
     with open(path) as f:
         cfg = json.load(f)
 servers = cfg.setdefault('mcpServers', {})
-servers['leetcode'] = {
-    "type": "stdio",
-    "command": "npx",
-    "args": ["-y", pkg, "--site", site],
-    "env": {"LEETCODE_SITE": site, "LEETCODE_SESSION": ""},
-}
+servers['leetcode'] = {"type": "stdio", "command": launcher}
 with open(path, 'w') as f:
     json.dump(cfg, f, indent=2)
 PY
@@ -313,14 +333,9 @@ write_mcp_codex() {
     fi
     cat >> "$path" << CODEXMCP
 
-# leet-teach: leetcode MCP server
+# leet-teach: leetcode MCP server (reads session from ~/.leetcode/leetcode.toml)
 [mcp_servers.leetcode]
-command = "npx"
-args = ["-y", "${MCP_SERVER_PACKAGE}@${MCP_SERVER_VERSION}", "--site", "${MCP_SITE}"]
-
-[mcp_servers.leetcode.env]
-LEETCODE_SITE = "${MCP_SITE}"
-LEETCODE_SESSION = ""
+command = "${LEET_MCP_LAUNCHER}"
 CODEXMCP
     ok "Codex MCP config added to $path"
 }
@@ -332,19 +347,13 @@ write_mcp_opencode() {
     python3 << 'PY'
 import json, os
 path = os.environ['LEET_MCP_CONFIG_PATH']
-pkg = f"{os.environ['LEET_MCP_PACKAGE']}@{os.environ['LEET_MCP_VERSION']}"
-site = os.environ['LEET_MCP_SITE']
+launcher = os.environ['LEET_MCP_LAUNCHER']
 cfg = {}
 if os.path.exists(path):
     with open(path) as f:
         cfg = json.load(f)
 mcp = cfg.setdefault('mcp', {})
-mcp['leetcode'] = {
-    "type": "local",
-    "enabled": True,
-    "command": ["npx", "-y", pkg, "--site", site],
-    "environment": {"LEETCODE_SITE": site, "LEETCODE_SESSION": ""},
-}
+mcp['leetcode'] = {"type": "local", "enabled": True, "command": [launcher]}
 with open(path, 'w') as f:
     json.dump(cfg, f, indent=2)
 PY
@@ -353,45 +362,30 @@ PY
 
 write_mcp_templates() {
     info "Refreshing MCP config templates in $PROJ_DIR/mcp-configs/"
-    local pkg="${MCP_SERVER_PACKAGE}@${MCP_SERVER_VERSION}"
-    cat > "$PROJ_DIR/mcp-configs/claude-desktop.json" << EOF
+    cat > "$PROJ_DIR/mcp-configs/claude-desktop.json" << 'EOF'
 {
   "mcpServers": {
     "leetcode": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "${pkg}", "--site", "${MCP_SITE}"],
-      "env": {
-        "LEETCODE_SITE": "${MCP_SITE}",
-        "LEETCODE_SESSION": ""
-      }
+      "command": "~/.local/bin/leetcode-mcp"
     }
   }
 }
 EOF
-    cat > "$PROJ_DIR/mcp-configs/codex.toml" << EOF
+    cat > "$PROJ_DIR/mcp-configs/codex.toml" << 'EOF'
 # Add to ~/.codex/config.toml
-# Codex uses TOML for MCP config, not JSON
+# The launcher reads the session from ~/.leetcode/leetcode.toml at runtime.
 
 [mcp_servers.leetcode]
-command = "npx"
-args = ["-y", "${pkg}", "--site", "${MCP_SITE}"]
-
-[mcp_servers.leetcode.env]
-LEETCODE_SITE = "${MCP_SITE}"
-LEETCODE_SESSION = ""
+command = "~/.local/bin/leetcode-mcp"
 EOF
-    cat > "$PROJ_DIR/mcp-configs/opencode.json" << EOF
+    cat > "$PROJ_DIR/mcp-configs/opencode.json" << 'EOF'
 {
   "mcp": {
     "leetcode": {
       "type": "local",
       "enabled": true,
-      "command": ["npx", "-y", "${pkg}", "--site", "${MCP_SITE}"],
-      "environment": {
-        "LEETCODE_SITE": "${MCP_SITE}",
-        "LEETCODE_SESSION": ""
-      }
+      "command": ["~/.local/bin/leetcode-mcp"]
     }
   }
 }
@@ -402,7 +396,9 @@ EOF
 configure_mcp() {
     info "Configuring MCP for Claude, Codex, and OpenCode..."
     command -v python3 >/dev/null || die "python3 required to merge MCP configs"
-    export LEET_MCP_PACKAGE="$MCP_SERVER_PACKAGE" LEET_MCP_VERSION="$MCP_SERVER_VERSION" LEET_MCP_SITE="$MCP_SITE"
+    local launcher="$HOME/.local/bin/leetcode-mcp"
+    [ -x "$launcher" ] || die "launcher not installed at $launcher. Run setup with mcp-launcher step."
+    export LEET_MCP_LAUNCHER="$launcher"
 
     mkdir -p "$HOME/.config/claude" "$HOME/.codex" "$HOME/.config/opencode"
     write_mcp_claude   "$HOME/.config/claude/claude_desktop_config.json"
@@ -411,11 +407,9 @@ configure_mcp() {
     write_mcp_templates
 
     info ""
-    warn "IMPORTANT: Set your LEETCODE_SESSION cookie in the config files!"
-    info "  1. Log in to https://leetcode.com in your browser"
-    info "  2. Open DevTools (F12) → Application → Cookies"
-    info "  3. Copy the LEETCODE_SESSION value"
-    info "  4. Set it in the MCP configs, or run: leetcode data -c"
+    warn "IMPORTANT: Set your LeetCode session cookie: leetcode data -c"
+    info "  The cookie is stored once in ~/.leetcode/leetcode.toml."
+    info "  Both leetcode-cli and the MCP server read from there — no need to edit MCP configs."
 }
 
 install_skill() {
@@ -448,7 +442,7 @@ main() {
     echo "╚══════════════════════════════════════════╝"
     echo -e "${NC}"
 
-    local steps=("helix" "helix-config" "tmux-config" "leetcode-cli" "leetcode-config" "mcp-install" "mcp-config" "skills" "project")
+    local steps=("helix" "helix-config" "tmux-config" "leetcode-cli" "leetcode-config" "mcp-install" "mcp-launcher" "mcp-config" "skills" "project")
     local failed=()
 
     for step in "${steps[@]}"; do
@@ -461,6 +455,7 @@ main() {
             leetcode-cli)    install_leetcode_cli || failed+=("$step") ;;
             leetcode-config) configure_leetcode_cli || failed+=("$step") ;;
             mcp-install)     install_mcp_server || failed+=("$step") ;;
+            mcp-launcher)    install_mcp_launcher || failed+=("$step") ;;
             mcp-config)      configure_mcp || failed+=("$step") ;;
             skills)          install_skills || failed+=("$step") ;;
             project)         setup_project || failed+=("$step") ;;
@@ -480,14 +475,10 @@ main() {
     echo ""
     echo -e "${GREEN}Quick start:${NC}"
     echo "  1. Set your LeetCode cookies:  leetcode data -c"
-    echo "  2. Edit MCP session cookie in:"
-    echo "     ~/.config/claude/claude_desktop_config.json"
-    echo "     ~/.codex/config.toml"
-    echo "     ~/.config/opencode/config.json"
-    echo "  3. Pick a problem:             leet pick two-sum"
-    echo "  4. Edit in helix:              leet edit 1"
-    echo "  5. Test:                       leet test 1"
-    echo "  6. Submit:                     leet submit 1"
+    echo "  2. Pick a problem:             leet pick two-sum"
+    echo "  3. Edit in helix:              leet edit 1"
+    echo "  4. Test:                       leet test 1"
+    echo "  5. Submit:                     leet submit 1"
     echo ""
     echo -e "${YELLOW}Or let your AI coach handle it via MCP tools.${NC}"
 }

@@ -23,20 +23,23 @@ This installs and configures:
    ```bash
    leetcode data -c
    ```
-   Or manually add `LEETCODE_SESSION` to the MCP config files.
+   The cookie is stored once in `~/.leetcode/leetcode.toml`. Both `leetcode-cli` and the MCP server read from there — no need to edit MCP configs.
 
-2. Set your LeetCode session in MCP configs:
-   - `~/.config/claude/claude_desktop_config.json`
-   - `~/.codex/config.toml`
-   - `~/.config/opencode/config.json`
-
-3. Pick a problem and start:
+2. Pick a problem and start:
    ```bash
-   leetcode pick two-sum    # scaffold problem
-   leetcode edit 1          # open in helix
-   leetcode test 1          # test solution
-   leetcode exec 1          # submit solution
+   leet pick two-sum    # scaffold problem + open in helix
+   leet test 1          # test solution
+   leet submit 1        # submit solution
    ```
+
+## Changing the Problem Language
+
+```bash
+leet lang              # interactive picker
+leet lang rust         # set directly
+```
+
+Supported languages: `python`, `rust`, `cpp`, `c`, `java`, `go`. The language is stored in `~/.leetcode/leetcode.toml` and uses helix's naming convention so LSP and leetcode-cli stay consistent. Per-language imports (`inject_before`) and comment style (`comment_leading`) are set automatically.
 
 ## Workflow with AI Coach
 
@@ -93,10 +96,8 @@ leet-teach/
 ## Customization
 
 ### Change default language
-Edit `~/.leetcode/leetcode.toml`:
-```toml
-[code]
-lang = 'rust'  # or python3, cpp, go, java, etc.
+```bash
+leet lang rust         # or: leet lang for a picker
 ```
 
 ### Change editor
