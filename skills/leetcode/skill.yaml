@@ -1,4 +1,0 @@
-name: leetcode
-description: LeetCode practice and DSA learning workflow using leetcode-cli + MCP server + helix editor. Manages problem selection, code scaffolding, testing, submission, and AI-assisted coaching.
-disable-model-invocation: true
-argument-hint: "Problem ID, slug, or topic (e.g. 'two-sum', 'graphs', 'daily')"
