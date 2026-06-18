@@ -3,7 +3,9 @@
 # Strict mode + dispatch run only when executed, not when sourced (for tests).
 PROG="$(basename "${0}")"
 LEET_PANE_OPTION="@leet_edit_pane"
-LEET_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LEET_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# leetcode-cli installs to ~/.cargo/bin (setup.sh adds it to PATH, but not login shells)
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 # shellcheck source=leet-languages.sh
 source "$LEET_DIR/leet-languages.sh"
 
@@ -14,7 +16,7 @@ Usage: $PROG <command> [args]
 LeetCode + tmux workflow wrapper.
 
 Commands:
-  pick <slug>      Pick a problem, then open it in the helix pane
+  pick <slug|id>    Pick a problem, then open it in the helix pane
   edit <id>        Open problem in helix pane (reuses existing pane)
   test <id>        Test solution (runs in current pane)
   submit <id>      Submit solution (runs in current pane)
@@ -22,7 +24,8 @@ Commands:
   close            Close the helix pane
 
 Examples:
-  $PROG pick two-sum    # Pick problem + open in helix pane
+  $PROG pick two-sum    # Pick by slug + open in helix pane
+  $PROG pick 1          # Pick by ID + open in helix pane
   $PROG edit 1          # Switch to problem 1 in existing helix pane
   $PROG test 1          # Run tests
   $PROG submit 1        # Submit solution
@@ -128,9 +131,14 @@ close_pane() {
 }
 
 do_pick() {
-    local slug="$1" output id
+    local arg="$1" output id pick_args=()
     require_leetcode
-    output=$(leetcode pick "$slug" 2>&1) || { echo "$output" >&2; die "leetcode pick failed"; }
+    if [[ $arg =~ ^[0-9]+$ ]]; then
+        pick_args=("$arg")
+    else
+        pick_args=(-n "$arg")
+    fi
+    output=$(leetcode pick "${pick_args[@]}" 2>&1) || { echo "$output" >&2; die "leetcode pick failed"; }
     echo "$output"
     id=$(parse_problem_id "$output") || die "could not parse problem ID from leetcode output; use '$PROG edit <id>' manually"
     echo ""

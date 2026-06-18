@@ -313,6 +313,13 @@ install_mcp_launcher() {
     ok "launcher installed at $launcher_dst"
 }
 
+install_leet() {
+    info "Installing leet command..."
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$PROJ_DIR/scripts/leet" "$HOME/.local/bin/leet"
+    ok "leet symlinked to $HOME/.local/bin/leet"
+}
+
 write_mcp_claude() {
     local path="$1"
     [ -f "$path" ] && { warn "Backing up Claude Desktop config"; cp "$path" "$path.bak"; }
@@ -455,7 +462,7 @@ main() {
     echo "╚══════════════════════════════════════════╝"
     echo -e "${NC}"
 
-    local steps=("helix" "helix-config" "tmux-config" "leetcode-cli" "leetcode-config" "mcp-install" "mcp-launcher" "mcp-config" "skills" "project")
+    local steps=("helix" "helix-config" "tmux-config" "leetcode-cli" "leetcode-config" "mcp-install" "mcp-launcher" "leet" "mcp-config" "skills" "project")
     local failed=()
 
     for step in "${steps[@]}"; do
@@ -469,6 +476,7 @@ main() {
             leetcode-config) configure_leetcode_cli || failed+=("$step") ;;
             mcp-install)     install_mcp_server || failed+=("$step") ;;
             mcp-launcher)    install_mcp_launcher || failed+=("$step") ;;
+            leet)            install_leet || failed+=("$step") ;;
             mcp-config)      configure_mcp || failed+=("$step") ;;
             skills)          install_skills || failed+=("$step") ;;
             project)         setup_project || failed+=("$step") ;;
