@@ -12,3 +12,7 @@ LEETCODE_SESSION=*
 /.mcp.json*
 /opencode.json*
 /.codex/
+
+# Project-local skill links the skills CLI creates (symlinks into .agents/, which is
+# also per-machine). See install_skills in setup.sh.
+/.claude/
