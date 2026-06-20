@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # leet-mcp.sh — single source of truth for MCP "leetcode" server registration.
 #
-# Each assistant's entry shape is declared exactly once (the SHAPES registry for
-# JSON assistants; mcp_codex_table for codex). Both the live config write and the
-# committed mcp-configs/ templates are rendered from these same cores, so the two
-# can never drift. Sourced by setup.sh; pure cores are covered by leet-mcp_test.sh.
+# The set of assistants lives once in the MCP_ASSISTANTS registry; both consumers
+# (configure_mcp's live write and mcp_emit_templates' committed templates) iterate it,
+# and mcp_write dispatches by kind. Each entry's *shape* is declared exactly once too
+# (the SHAPES registry for JSON assistants; mcp_codex_table for codex). Live writes and
+# templates render from these same cores, so the two can never drift. Sourced by
+# setup.sh; the registry and pure cores are covered by leet-mcp_test.sh.
 
 LEET_MCP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LEET_MCP_CONFIGS_DIR="$(cd "$LEET_MCP_DIR/.." && pwd)/mcp-configs"
@@ -14,6 +16,20 @@ LEET_MCP_CONFIGS_DIR="$(cd "$LEET_MCP_DIR/.." && pwd)/mcp-configs"
 # literal here (it is documentation, not a path we resolve).
 # shellcheck disable=SC2088
 LEET_MCP_TEMPLATE_CMD='~/.local/bin/leetcode-mcp'
+
+# MCP_ASSISTANTS — the single registry of assistants we register the leetcode MCP
+# server for: one "name:kind:live_subpath:template" row each. Single source of truth
+# (no parallel lists in configure_mcp and mcp_emit_templates to drift out of sync).
+#   name         passed to the writers; for json it keys the JSON shape (SHAPES)
+#   kind         json | toml — dispatches mcp_write to the right writer
+#   live_subpath where configure_mcp writes, relative to the project dir
+#   template     the committed mcp-configs/ file name the renderer emits
+# shellcheck disable=SC2034  # consumed by setup.sh and mcp_emit_templates after sourcing
+MCP_ASSISTANTS=(
+    "claude:json:.mcp.json:claude-desktop.json"
+    "opencode:json:opencode.json:opencode.json"
+    "codex:toml:.codex/config.toml:codex.toml"
+)
 
 # Back up <path> to <path>.bak exactly once: skip if the file is absent, and
 # never overwrite an existing .bak (so re-runs can't clobber the pristine copy).
@@ -87,23 +103,48 @@ mcp_write_codex() {
     } >> "$path"
 }
 
-# Render the three committed mcp-configs/ templates from the same cores as the
-# live writers, using the tilde command. <dir> defaults to the repo's mcp-configs.
-# Because templates are rendered (not hand-written), leet-mcp_test.sh can assert
-# committed == rendered and catch any drift.
-mcp_emit_templates() {
-    local dir="${1:-$LEET_MCP_CONFIGS_DIR}"
-    local tilde="$LEET_MCP_TEMPLATE_CMD"
-    rm -f "$dir/claude-desktop.json"
-    mcp_write_json "$dir/claude-desktop.json" claude "$tilde"
-    rm -f "$dir/opencode.json"
-    mcp_write_json "$dir/opencode.json" opencode "$tilde"
+# mcp_write <kind> <path> <name> <cmd> — dispatch one assistant's live registration
+# write by kind: json → mcp_write_json (shape keyed by <name>), toml → mcp_write_codex.
+# The decision lives here, tested directly; configure_mcp stays thin registry iteration.
+mcp_write() {
+    local kind="$1" path="$2" name="$3" cmd="$4"
+    case "$kind" in
+        json) mcp_write_json "$path" "$name" "$cmd" ;;
+        toml) mcp_write_codex "$path" "$cmd" ;;
+        *)    echo "mcp_write: unknown kind '$kind'" >&2; return 1 ;;
+    esac
+}
+
+# mcp_emit_codex_template <path> <cmd> — render the standalone, documented codex
+# template (a human-facing file under mcp-configs/). Distinct from mcp_write_codex,
+# which merges the table into a live .codex/config.toml: this writes a fresh file
+# with the documentation header, so the two codex outputs intentionally differ.
+mcp_emit_codex_template() {
+    local path="$1" cmd="$2"
     {
         printf '# Project-local: .codex/config.toml in your project root (trust the folder when codex prompts).\n'
         printf '# The launcher reads the session from ~/.leetcode/leetcode.toml at runtime.\n'
         printf '\n'
-        mcp_codex_table "$tilde"
-    } > "$dir/codex.toml"
+        mcp_codex_table "$cmd"
+    } > "$path"
+}
+
+# Render the committed mcp-configs/ templates from the same cores as the live writers,
+# using the tilde command. <dir> defaults to the repo's mcp-configs. Iterates the one
+# MCP_ASSISTANTS registry; json templates go through mcp_write_json (identical to the
+# live write), the toml template through mcp_emit_codex_template. Because templates are
+# rendered (not hand-written), leet-mcp_test.sh asserts committed == rendered.
+mcp_emit_templates() {
+    local dir="${1:-$LEET_MCP_CONFIGS_DIR}" tilde="$LEET_MCP_TEMPLATE_CMD"
+    local row name kind tmpl
+    for row in "${MCP_ASSISTANTS[@]}"; do
+        IFS=: read -r name kind _ tmpl <<< "$row"
+        rm -f "$dir/$tmpl"
+        case "$kind" in
+            json) mcp_write_json "$dir/$tmpl" "$name" "$tilde" ;;
+            toml) mcp_emit_codex_template "$dir/$tmpl" "$tilde" ;;
+        esac
+    done
 }
 
 # Executed directly (dev only): regenerate the committed templates. Sourced (the

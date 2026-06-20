@@ -351,31 +351,24 @@ configure_mcp() {
     local launcher="$HOME/.local/bin/leetcode-mcp"
     [ -x "$launcher" ] || die "launcher not installed at $launcher. Run setup with mcp-launcher step."
 
-    # Project-local scope: write each assistant's config inside this folder so the
+    # Project-local scope: each assistant's config is written inside this folder so the
     # leetcode MCP server is only active for assistants launched from here — never
-    # registered globally. Each path is the project-scope location for its tool.
-    local claude_cfg="$PROJ_DIR/.mcp.json"                 # Claude Code, project scope
-    local opencode_cfg="$PROJ_DIR/opencode.json"           # OpenCode, project config
-    local codex_cfg="$PROJ_DIR/.codex/config.toml"         # Codex, trusted-project config
-    mkdir -p "$PROJ_DIR/.codex"
-
-    # Each writer is the single source of its assistant's entry shape (see
-    # scripts/leet-mcp.sh); the committed mcp-configs/ templates are rendered from
-    # these same cores, so setup no longer regenerates them here.
-    mcp_backup_once "$claude_cfg"
-    mcp_write_json "$claude_cfg" claude "$launcher"
-    ok "Claude Code MCP config written to $claude_cfg (project scope)"
-
-    mcp_backup_once "$opencode_cfg"
-    mcp_write_json "$opencode_cfg" opencode "$launcher"
-    ok "OpenCode MCP config written to $opencode_cfg (project scope)"
-
-    mcp_backup_once "$codex_cfg"
-    mcp_write_codex "$codex_cfg" "$launcher"
-    ok "Codex MCP config written to $codex_cfg (trust this folder when codex prompts)"
+    # registered globally. The set of assistants and their project-scope paths lives
+    # once in MCP_ASSISTANTS (scripts/leet-mcp.sh); we iterate it and dispatch the write
+    # by kind via mcp_write, so adding an assistant is one registry row, not edits here.
+    local row name kind live path
+    for row in "${MCP_ASSISTANTS[@]}"; do
+        IFS=: read -r name kind live _ <<< "$row"
+        path="$PROJ_DIR/$live"
+        mkdir -p "$(dirname "$path")"
+        mcp_backup_once "$path"
+        mcp_write "$kind" "$path" "$name" "$launcher"
+        ok "$name MCP config written to $path (project scope)"
+    done
 
     info ""
     info "These configs live inside the project. Launch your assistant from $PROJ_DIR."
+    info "Codex: trust this folder when it prompts."
     warn "IMPORTANT: log into leetcode.com in your browser, then run: leet sync"
     info "  leet sync pulls the live session from any Firefox-family browser into"
     info "  ~/.leetcode/leetcode.toml. Both leetcode-cli and the MCP server read from"
@@ -390,11 +383,11 @@ install_skill() {
 }
 
 install_skills() {
-    info "Installing skills (mattpocock/teach + local leetcode skill)..."
+    info "Installing skills (mattpocock/teach + local leet-teach skill)..."
     cd "$PROJ_DIR"
     command -v npx >/dev/null || die "npx not found. Install Node.js first: https://nodejs.org/"
     install_skill mattpocock/skills teach
-    install_skill madebymlai/leet-teach leetcode
+    install_skill madebymlai/leet-teach leet-teach
     ok "Skills setup complete"
 }
 

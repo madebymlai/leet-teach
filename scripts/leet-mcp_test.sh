@@ -139,6 +139,62 @@ SEED
     rm -rf "$dir"
 }
 
+# --- mcp_write: kind dispatch (json → mcp_write_json, toml → mcp_write_codex) ---
+
+test_mcp_write_dispatches_json_to_claude_shape() {
+    local dir; dir=$(mktemp -d)
+    mcp_write json "$dir/claude.json" claude "$CMD"
+    assert_eq "mcp_write json → claude command" \
+        "$(json_get "$dir/claude.json" "d['mcpServers']['leetcode']['command']")" "$CMD"
+    rm -rf "$dir"
+}
+
+test_mcp_write_dispatches_toml_to_codex_table() {
+    local dir; dir=$(mktemp -d)
+    mcp_write toml "$dir/config.toml" codex "$CMD"
+    assert_eq "mcp_write toml → leetcode table present" \
+        "$(grep -c '^\[mcp_servers.leetcode\]' "$dir/config.toml")" "1"
+    assert_eq "mcp_write toml → command recorded" \
+        "$(grep -c "command = \"$CMD\"" "$dir/config.toml")" "1"
+    rm -rf "$dir"
+}
+
+test_mcp_write_rejects_unknown_kind() {
+    local dir; dir=$(mktemp -d)
+    assert_fails "mcp_write rejects an unknown kind" \
+        mcp_write yaml "$dir/x" claude "$CMD"
+    rm -rf "$dir"
+}
+
+# --- MCP_ASSISTANTS: the single registry both consumers iterate ---
+
+test_registry_is_non_empty() {
+    assert_succeeds "MCP_ASSISTANTS is non-empty" test "${#MCP_ASSISTANTS[@]}" -gt 0
+}
+
+test_registry_rows_well_formed() {
+    local row name kind live tmpl bad=""
+    for row in "${MCP_ASSISTANTS[@]}"; do
+        IFS=: read -r name kind live tmpl <<< "$row"
+        [ -n "$name" ] && [ -n "$kind" ] && [ -n "$live" ] && [ -n "$tmpl" ] || bad="$bad [$row:fields]"
+        case "$kind" in json|toml) ;; *) bad="$bad [$row:kind]" ;; esac
+    done
+    assert_eq "every MCP_ASSISTANTS row is name:kind(json|toml):live:template" "$bad" ""
+}
+
+test_every_json_row_registers_through_mcp_write() {
+    local dir row name kind live tmpl
+    dir=$(mktemp -d)
+    for row in "${MCP_ASSISTANTS[@]}"; do
+        IFS=: read -r name kind live tmpl <<< "$row"
+        [ "$kind" = json ] || continue
+        mcp_write json "$dir/$name.json" "$name" "$CMD"
+        assert_eq "json row '$name' registers a leetcode entry (name has a shape)" \
+            "$(json_get "$dir/$name.json" "'leetcode' in d[list(d)[0]]")" "True"
+    done
+    rm -rf "$dir"
+}
+
 # --- drift guard: committed templates must equal the renderer output ---
 
 test_templates_match_renderer() {
@@ -186,6 +242,12 @@ test_malformed_json_clean_fail
 test_codex_table_fragment_exact
 test_codex_idempotent_preserve_other
 test_codex_prefix_safety
+test_mcp_write_dispatches_json_to_claude_shape
+test_mcp_write_dispatches_toml_to_codex_table
+test_mcp_write_rejects_unknown_kind
+test_registry_is_non_empty
+test_registry_rows_well_formed
+test_every_json_row_registers_through_mcp_write
 test_templates_match_renderer
 test_backup_once_no_clobber
 test_backup_skips_missing_file
