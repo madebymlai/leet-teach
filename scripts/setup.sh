@@ -376,10 +376,12 @@ configure_mcp() {
 }
 
 install_skill() {
-    local repo="$1" name="$2"
-    info "Installing $name skill from $repo..."
-    npx "skills@${SKILLS_VERSION}" add "$repo" --skill "$name" -y \
-        || die "failed to install $name skill from $repo"
+    local repo="$1" name="$2" out
+    # Keep the skills CLI's banner and summary out of our output; show it only on failure.
+    if ! out=$(npx "skills@${SKILLS_VERSION}" add "$repo" --skill "$name" -y 2>&1); then
+        err "$out"
+        die "failed to install $name skill from $repo"
+    fi
 }
 
 install_skills() {
