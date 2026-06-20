@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# run-tests — discover and run every *_test.sh suite in a directory, aggregate the
+# results, and exit non-zero if any suite fails. The directory argument is the
+# testability seam: tests point it at a fixture dir; the default is this script's
+# own dir, so `scripts/run-tests` runs the whole project suite.
+#
+# Deliberately not `set -e`: a failing suite must not abort the run — every suite
+# runs and the failures are collected.
+set -uo pipefail
+
+# run_tests <dir> — run each *_test.sh in <dir>; return 0 iff all suites pass.
+run_tests() {
+    local dir="$1" file total=0 failed=()
+    shopt -s nullglob
+    local files=("$dir"/*_test.sh)
+    shopt -u nullglob
+    for file in "${files[@]}"; do
+        total=$((total + 1))
+        echo "=== ${file##*/} ==="
+        bash "$file" || failed+=("${file##*/}")
+        echo ""
+    done
+    if [ "${#failed[@]}" -gt 0 ]; then
+        echo "FAILED (${#failed[@]}/${total}): ${failed[*]}"
+        return 1
+    fi
+    echo "All ${total} suites passed."
+    return 0
+}
+
+# Run only when executed, not when sourced (for tests).
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+    run_tests "$DIR"
+fi

@@ -6,44 +6,8 @@ set -euo pipefail
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=leet-mcp.sh
 source "$TESTS_DIR/leet-mcp.sh"
-
-pass=0
-fail=0
-
-assert_eq() {
-    local name="$1" actual="$2" expected="$3"
-    if [ "$actual" = "$expected" ]; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name -- got '$actual', expected '$expected'"
-        fail=$((fail + 1))
-    fi
-}
-
-assert_succeeds() {
-    local name="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name should succeed"
-        fail=$((fail + 1))
-    fi
-}
-
-assert_fails() {
-    local name="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        echo "FAIL: $name should fail"
-        fail=$((fail + 1))
-    else
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    fi
-}
+# shellcheck source=test-support.sh
+source "$TESTS_DIR/test-support.sh"
 
 # Read a value out of a JSON file via a python expression over bound name `d`.
 json_get() {
@@ -226,6 +190,4 @@ test_templates_match_renderer
 test_backup_once_no_clobber
 test_backup_skips_missing_file
 
-echo ""
-echo "Results: $pass passed, $fail failed"
-[ "$fail" -eq 0 ]
+finish

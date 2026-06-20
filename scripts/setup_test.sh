@@ -8,20 +8,8 @@ set -euo pipefail
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=setup.sh
 source "$TESTS_DIR/setup.sh"
-
-pass=0
-fail=0
-
-assert_eq() {
-    local name="$1" actual="$2" expected="$3"
-    if [ "$actual" = "$expected" ]; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name -- got '$actual', expected '$expected'"
-        fail=$((fail + 1))
-    fi
-}
+# shellcheck source=test-support.sh
+source "$TESTS_DIR/test-support.sh"
 
 # --- run_steps: green path ---
 
@@ -73,6 +61,4 @@ test_run_steps_records_failed_label_and_continues
 test_run_steps_collects_failures_in_registry_order
 test_every_registered_step_resolves_to_a_defined_function
 
-echo ""
-echo "Results: $pass passed, $fail failed"
-[ "$fail" -eq 0 ]
+finish

@@ -6,44 +6,8 @@ set -euo pipefail
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=leet
 source "$TESTS_DIR/leet"
-
-pass=0
-fail=0
-
-assert_eq() {
-    local name="$1" actual="$2" expected="$3"
-    if [ "$actual" = "$expected" ]; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name -- got '$actual', expected '$expected'"
-        fail=$((fail + 1))
-    fi
-}
-
-assert_succeeds() {
-    local name="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name should succeed"
-        fail=$((fail + 1))
-    fi
-}
-
-assert_fails() {
-    local name="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        echo "FAIL: $name should fail"
-        fail=$((fail + 1))
-    else
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    fi
-}
+# shellcheck source=test-support.sh
+source "$TESTS_DIR/test-support.sh"
 
 # --- parse_problem_id ---
 
@@ -149,6 +113,4 @@ test_plan_close_dead_but_stored_only_unsets
 test_plan_close_no_stored_id_is_empty
 test_do_pick_shapes_args_and_threads_id_to_pane_edit
 
-echo ""
-echo "Results: $pass passed, $fail failed"
-[ "$fail" -eq 0 ]
+finish

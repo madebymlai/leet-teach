@@ -8,44 +8,8 @@ set -euo pipefail
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=leet-cookies.sh
 source "$TESTS_DIR/leet-cookies.sh"
-
-pass=0
-fail=0
-
-assert_eq() {
-    local name="$1" actual="$2" expected="$3"
-    if [ "$actual" = "$expected" ]; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name -- got '$actual', expected '$expected'"
-        fail=$((fail + 1))
-    fi
-}
-
-assert_succeeds() {
-    local name="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name should succeed"
-        fail=$((fail + 1))
-    fi
-}
-
-assert_fails() {
-    local name="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        echo "FAIL: $name should fail"
-        fail=$((fail + 1))
-    else
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    fi
-}
+# shellcheck source=test-support.sh
+source "$TESTS_DIR/test-support.sh"
 
 # make_db <db-path> "name|value|host|lastAccessed"... — write a minimal Firefox
 # cookies.sqlite holding just the columns cookies_read selects.
@@ -220,6 +184,4 @@ test_cookies_sync_writes_session_and_csrf
 test_cookies_sync_keeps_existing_csrf_when_browser_has_none
 test_cookies_sync_fails_and_preserves_toml_when_no_session
 
-echo ""
-echo "Results: $pass passed, $fail failed"
-[ "$fail" -eq 0 ]
+finish

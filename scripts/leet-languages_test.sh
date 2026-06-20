@@ -8,44 +8,8 @@ TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$TESTS_DIR/leet-languages.sh"
 # shellcheck source=leet-toml.sh
 source "$TESTS_DIR/leet-toml.sh"   # toml_get, used to read back apply_lang results
-
-pass=0
-fail=0
-
-assert_eq() {
-    local name="$1" actual="$2" expected="$3"
-    if [ "$actual" = "$expected" ]; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name -- got '$actual', expected '$expected'"
-        fail=$((fail + 1))
-    fi
-}
-
-assert_succeeds() {
-    local name="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    else
-        echo "FAIL: $name should succeed"
-        fail=$((fail + 1))
-    fi
-}
-
-assert_fails() {
-    local name="$1"
-    shift
-    if "$@" >/dev/null 2>&1; then
-        echo "FAIL: $name should fail"
-        fail=$((fail + 1))
-    else
-        echo "PASS: $name"
-        pass=$((pass + 1))
-    fi
-}
+# shellcheck source=test-support.sh
+source "$TESTS_DIR/test-support.sh"
 
 # --- lang_info ---
 
@@ -146,6 +110,4 @@ test_apply_lang_replaces_existing_comment_leading
 test_apply_lang_preserves_other_lines
 test_apply_lang_no_duplicate_comment_leading_on_reswitch
 
-echo ""
-echo "Results: $pass passed, $fail failed"
-[ "$fail" -eq 0 ]
+finish
