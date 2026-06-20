@@ -126,7 +126,7 @@ pane_command() {
 }
 
 check_cookies() {
-    local toml="$HOME/.leetcode/leetcode.toml"
+    local toml; toml=$(toml_path)
     [ -f "$toml" ] || die "leetcode.toml not found at $toml. Run scripts/setup.sh first."
     if ! toml_has "$(cat "$toml")" session; then
         # Empty (not stale) is rare — try one browser sync before giving up.
@@ -145,7 +145,7 @@ run_leetcode_auth() {
     printf '%s\n' "$out"
     if is_auth_failure "$code" "$out"; then
         echo "$PROG: session looks stale, re-syncing from your browser and retrying..." >&2
-        if cookies_sync "$HOME/.leetcode/leetcode.toml"; then
+        if cookies_sync "$(toml_path)"; then
             leetcode "$@"
             return $?
         fi
@@ -249,13 +249,13 @@ do_submit() {
 }
 
 do_sync() {
-    cookies_sync "$HOME/.leetcode/leetcode.toml"
+    cookies_sync "$(toml_path)"
 }
 
 do_lang() {
     local chosen="${1:-}" helix_name toml content current
     require_leetcode
-    toml="$HOME/.leetcode/leetcode.toml"
+    toml=$(toml_path)
     [ -f "$toml" ] || die "leetcode.toml not found. Run scripts/setup.sh first."
     content=$(cat "$toml")
     current=$(toml_get "$content" lang)

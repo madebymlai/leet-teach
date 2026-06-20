@@ -25,7 +25,7 @@ map_site() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     set -euo pipefail
 
-    LC_TOML="${LEETCODE_TOML:-$HOME/.leetcode/leetcode.toml}"
+    LC_TOML="$(toml_path)"
 
     [ -f "$LC_TOML" ] || {
         echo "leetcode-mcp: $LC_TOML not found. Run scripts/setup.sh first." >&2

@@ -138,6 +138,20 @@ test_toml_set_absent_key_unchanged() {
     assert_eq "toml_set leaves content unchanged when key absent" "$out" "$content"
 }
 
+# --- toml_path ---
+
+test_toml_path_defaults_to_home_leetcode() {
+    local out
+    out=$(LEETCODE_TOML= toml_path)
+    assert_eq "toml_path defaults to ~/.leetcode/leetcode.toml" "$out" "$HOME/.leetcode/leetcode.toml"
+}
+
+test_toml_path_honors_env_override() {
+    local out
+    out=$(LEETCODE_TOML=/tmp/custom.toml toml_path)
+    assert_eq "toml_path honors LEETCODE_TOML override" "$out" "/tmp/custom.toml"
+}
+
 # --- run ---
 
 test_toml_get_extracts_single_quoted_value
@@ -158,5 +172,7 @@ test_toml_set_only_touches_named_key
 test_toml_set_tolerates_indentation
 test_toml_set_handles_jwt_with_dots_and_dashes
 test_toml_set_absent_key_unchanged
+test_toml_path_defaults_to_home_leetcode
+test_toml_path_honors_env_override
 
 finish

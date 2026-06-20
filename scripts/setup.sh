@@ -224,25 +224,27 @@ install_leetcode_cli() {
 configure_leetcode_cli() {
     info "Configuring leetcode-cli..."
     local LC_DIR="$HOME/.leetcode"
+    local toml bak
+    toml=$(toml_path); bak="$toml.bak"
     mkdir -p "$LC_DIR"
 
-    if grep -q "# leet-teach-config" "$LC_DIR/leetcode.toml" 2>/dev/null; then
+    if grep -q "# leet-teach-config" "$toml" 2>/dev/null; then
         info "leetcode.toml already managed by leet-teach, skipping"
         info "Change language with: leet lang <name>"
         info "Edit ~/.leetcode/leetcode.toml for other settings"
         return 0
     fi
 
-    if [ -f "$LC_DIR/leetcode.toml" ]; then
+    if [ -f "$toml" ]; then
         warn "Backing up existing leetcode.toml"
-        cp "$LC_DIR/leetcode.toml" "$LC_DIR/leetcode.toml.bak"
+        cp "$toml" "$bak"
     fi
 
     # Preserve existing session/csrf/site from old config (if any)
     local existing_session="" existing_csrf="" existing_site="leetcode.com"
-    if [ -f "$LC_DIR/leetcode.toml.bak" ]; then
+    if [ -f "$bak" ]; then
         local bak_content
-        bak_content=$(cat "$LC_DIR/leetcode.toml.bak")
+        bak_content=$(cat "$bak")
         existing_session=$(toml_get "$bak_content" session)
         existing_csrf=$(toml_get "$bak_content" csrf)
         existing_site=$(toml_get "$bak_content" site)
@@ -268,7 +270,7 @@ configure_leetcode_cli() {
     fi
     lang_info "$chosen" || die "unsupported language: $chosen. Supported: $SUPPORTED_LANGS"
 
-    cat > "$LC_DIR/leetcode.toml" << LEETCODECONFIG
+    cat > "$toml" << LEETCODECONFIG
 # leet-teach-config
 [code]
 editor = '${editor_cmd}'
@@ -292,7 +294,7 @@ root = '~/.leetcode'
 scripts = 'scripts'
 LEETCODECONFIG
 
-    ok "leetcode-cli config written to $LC_DIR/leetcode.toml (lang: $chosen)"
+    ok "leetcode-cli config written to $toml (lang: $chosen)"
     info "Change language later with: leet lang <name>"
     info "Set your cookies by logging into leetcode.com in your browser, then: leet sync"
 }

@@ -4,6 +4,11 @@
 # Pure helpers, no I/O — callers cat the file and pass the content in.
 # This module owns the on-disk format (quoting, indentation) so nothing else hand-rolls a regex.
 
+# toml_path — canonical path to the leetcode.toml, overridable via $LEETCODE_TOML.
+toml_path() {
+    printf '%s\n' "${LEETCODE_TOML:-$HOME/.leetcode/leetcode.toml}"
+}
+
 # toml_get <content> <key> — first quoted value for key, or empty string.
 toml_get() {
     local content="$1" key="$2"
