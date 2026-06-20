@@ -1,6 +1,6 @@
 # Leet-Teach
 
-LeetCode practice workspace with AI-assisted coaching. Uses helix editor, leetcode-cli, and MCP server (for Claude/Codex/OpenCode) with the mattpocock teach skill + a custom leetcode coaching skill.
+LeetCode practice workspace with AI-assisted coaching. Uses helix editor, leetcode-cli, and MCP server (for Claude/Codex/OpenCode) with the mattpocock teach skill + a custom leet-teach coaching skill.
 
 ## Quick Start
 
@@ -15,7 +15,7 @@ This installs and configures:
 - **leetcode-cli** (clearloop): problem scaffolding, testing, submission
 - **leetcode-mcp-server**: AI tools for Claude/Codex/OpenCode (project-local)
 - **teach skill**: mattpocock's teaching framework (project-local)
-- **leetcode skill**: custom DSA coaching skill
+- **leet-teach skill**: custom DSA coaching skill
 
 > **MCP is configured project-local.** `setup.sh` writes `.mcp.json`, `opencode.json`,
 > and `.codex/config.toml` *inside this folder*, so the leetcode MCP server is only active
@@ -82,7 +82,7 @@ Project-local teaching framework. Creates:
 - `reference/`: cheat sheets and glossaries
 - `RESOURCES.md`: curated learning sources
 
-### leetcode (custom)
+### leet-teach (custom)
 
 DSA coaching skill. Provides:
 - Problem selection based on weak areas
@@ -108,7 +108,7 @@ leet-teach/
 │   ├── codex.toml            #   [mcp_servers] shape → project .codex/config.toml
 │   └── opencode.json         #   mcp shape → project opencode.json
 ├── skills/
-│   └── leetcode/             # Custom leetcode coaching skill (SKILL.md, REFERENCE.md)
+│   └── leet-teach/           # Custom leet-teach coaching skill (SKILL.md, REFERENCE.md)
 ├── docs/                     # Design docs / ADRs
 ├── assets/                   # Static assets
 ├── lessons/                  # Teaching lessons (teach output; created empty by setup)

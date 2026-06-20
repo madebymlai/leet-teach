@@ -1,5 +1,5 @@
 ---
-name: leetcode
+name: leet-teach
 description: Orchestrate LeetCode DSA practice on top of the /teach skill. Runs the leetcode-cli/MCP problem loop, coaches the solve through questions, and helps the learner discover the syntax and tools a solution needs. Use when the user mentions leetcode, DSA, algorithms, problem solving, or wants to practice coding challenges. Delegates lessons, learning records, and zone-of-proximal-development tracking to /teach.
 argument-hint: "Problem ID, slug, topic, or 'daily'"
 ---
@@ -10,7 +10,7 @@ This skill is an **orchestrator on top of `/teach`**. It owns the *doing*: drivi
 
 ## Division of labor
 
-| This skill (leetcode) | /teach |
+| This skill (leet-teach) | /teach |
 |---|---|
 | Pick a problem at the ZPD, run the solve loop | Maintain the ZPD from learning records |
 | Coach the algorithm through questions | Turn an uncovered gap into a lesson |
@@ -61,7 +61,7 @@ Discovered syntax and tools are **stateful knowledge**, so route them through `/
 - in the learner's ZPD and worth practising: ask `/teach` for a lesson in `lessons/`
 - a fact or idiom to remember: ask `/teach` to write a learning record, and update `GLOSSARY.md` if it is a new term
 
-This keeps the orchestrator thin: leetcode surfaces the gap, `/teach` captures and teaches it.
+This keeps the orchestrator thin: leet-teach surfaces the gap, `/teach` captures and teaches it.
 
 ## Available tools
 

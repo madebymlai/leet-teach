@@ -1,10 +1,10 @@
 {
   "version": 1,
   "skills": {
-    "leetcode": {
+    "leet-teach": {
       "source": "madebymlai/leet-teach",
       "sourceType": "github",
-      "skillPath": "skills/leetcode/SKILL.md",
+      "skillPath": "skills/leet-teach/SKILL.md",
       "computedHash": "fdba3867c2076e3c091a10cff5161a1ba62878e31c978c509c4ff73a6d26d90d"
     },
     "teach": {

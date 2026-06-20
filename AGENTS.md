@@ -1,6 +1,6 @@
 # Agent Skills
 
-## leetcode
+## leet-teach
 LeetCode DSA coaching skill. Use when the user wants to practice LeetCode problems, learn algorithms, get hints, or track their DSA progress. Trigger words: "leetcode", "problem", "algorithm", "DSA", "data structures", "pick a problem".
 
 See SKILL.md for full instructions.
