@@ -128,6 +128,52 @@ test_toml_has_true_for_indented_key() {
     assert_succeeds "toml_has true for indented key" toml_has "$content" "session"
 }
 
+# --- toml_set ---
+
+test_toml_set_replaces_single_quoted_value() {
+    local content out
+    content=$'[cookies]\nsession = \'OLD\''
+    out=$(toml_set "$content" session "NEWVAL")
+    assert_eq "toml_set replaces single-quoted value" "$(toml_get "$out" session)" "NEWVAL"
+}
+
+test_toml_set_preserves_quote_style() {
+    local content out
+    content=$'[cookies]\nsession = \'OLD\''
+    out=$(toml_set "$content" session "NEWVAL")
+    assert_eq "toml_set keeps single quotes" "$out" $'[cookies]\nsession = \'NEWVAL\''
+}
+
+test_toml_set_only_touches_named_key() {
+    local content out
+    content=$'[cookies]\ncsrf = \'CSRFOLD\'\nsession = \'SESSOLD\''
+    out=$(toml_set "$content" session "SESSNEW")
+    assert_eq "toml_set leaves csrf untouched" "$(toml_get "$out" csrf)" "CSRFOLD"
+    assert_eq "toml_set updates session only" "$(toml_get "$out" session)" "SESSNEW"
+}
+
+test_toml_set_tolerates_indentation() {
+    local content out
+    content=$'[cookies]\n  session   =   \'OLD\''
+    out=$(toml_set "$content" session "NEWVAL")
+    assert_eq "toml_set tolerates indentation/spacing" "$(toml_get "$out" session)" "NEWVAL"
+}
+
+test_toml_set_handles_jwt_with_dots_and_dashes() {
+    local content out jwt
+    jwt='eyJ0eXAi.abc-_DEF.sig123'
+    content=$'[cookies]\nsession = \'OLD\''
+    out=$(toml_set "$content" session "$jwt")
+    assert_eq "toml_set handles JWT punctuation" "$(toml_get "$out" session)" "$jwt"
+}
+
+test_toml_set_absent_key_unchanged() {
+    local content out
+    content=$'[cookies]\ncsrf = \'abc\''
+    out=$(toml_set "$content" session "NEWVAL")
+    assert_eq "toml_set leaves content unchanged when key absent" "$out" "$content"
+}
+
 # --- run ---
 
 test_toml_get_extracts_single_quoted_value
@@ -142,6 +188,12 @@ test_toml_has_false_for_empty_value
 test_toml_has_false_for_missing_key
 test_toml_has_true_for_double_quoted_value
 test_toml_has_true_for_indented_key
+test_toml_set_replaces_single_quoted_value
+test_toml_set_preserves_quote_style
+test_toml_set_only_touches_named_key
+test_toml_set_tolerates_indentation
+test_toml_set_handles_jwt_with_dots_and_dashes
+test_toml_set_absent_key_unchanged
 
 echo ""
 echo "Results: $pass passed, $fail failed"

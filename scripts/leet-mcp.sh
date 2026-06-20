@@ -47,7 +47,7 @@ if os.path.exists(path):
             cfg = json.load(f)
         except json.JSONDecodeError:
             sys.stderr.write(
-                "%s is not valid JSON — fix or remove it, then re-run.\n" % path)
+                "%s is not valid JSON; fix or remove it, then re-run.\n" % path)
             sys.exit(1)
 cfg.setdefault(top, {})["leetcode"] = build(cmd)
 with open(path, 'w') as f:

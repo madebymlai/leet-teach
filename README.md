@@ -25,11 +25,26 @@ This installs and configures:
 
 ## After Setup
 
-1. Set your LeetCode cookies:
+1. Log into **leetcode.com in your browser**, then sync the cookie:
    ```bash
-   leetcode data -c
+   leet sync
    ```
-   The cookie is stored once in `~/.leetcode/leetcode.toml`. Both `leetcode-cli` and the MCP server read from there — no need to edit MCP configs.
+   `leet sync` reads the live `LEETCODE_SESSION` + `csrftoken` straight out of any
+   Firefox-family browser (Firefox, LibreWolf, Floorp, Zen, Waterfox, Mullvad, …) —
+   Firefox stores cookies unencrypted, so no `browser_cookie3`/Chrome-decryption hassle.
+   It scans every profile and picks whichever holds a live LeetCode session.
+
+   The cookie lands in `~/.leetcode/leetcode.toml` (the single source of truth); both
+   `leetcode-cli` and the MCP server read from there — no need to edit MCP configs.
+
+   > **Persistent login, honestly.** A LeetCode session can't be made immortal — it
+   > goes *stale* every couple of weeks. But as long as you stay logged in in your
+   > browser, you never deal with it: `leet test`/`leet submit` detect a stale-cookie
+   > rejection and **auto re-sync from the browser and retry**, and the MCP launcher
+   > refreshes the cookie each time your assistant starts. Run `leet sync` yourself any
+   > time you want to force a refresh. Reusing the browser's own cookie (rather than a
+   > fresh CLI login) also means the CLI and browser share one session instead of
+   > evicting each other.
 
 2. Pick a problem and start:
    ```bash
@@ -83,8 +98,9 @@ leet-teach/
 ├── scripts/                  # Bash workspace tooling (+ *_test.sh unit tests)
 │   ├── setup.sh              #   one-command, idempotent setup
 │   ├── leet                  #   workflow launcher (pick/edit/test/submit in tmux)
-│   ├── leetcode-mcp          #   leetcode MCP server launcher
-│   ├── leet-toml.sh          #   single reader for ~/.leetcode/leetcode.toml
+│   ├── leetcode-mcp          #   leetcode MCP server launcher (syncs cookie on start)
+│   ├── leet-toml.sh          #   single reader/writer for ~/.leetcode/leetcode.toml
+│   ├── leet-cookies.sh       #   pull live session from any Firefox-family browser
 │   ├── leet-languages.sh     #   supported-language registry
 │   └── leet-mcp.sh           #   project-local MCP registration (single-sourced shapes)
 ├── mcp-configs/              # Committed MCP shape references (rendered, drift-tested)

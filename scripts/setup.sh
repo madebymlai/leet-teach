@@ -294,7 +294,7 @@ LEETCODECONFIG
 
     ok "leetcode-cli config written to $LC_DIR/leetcode.toml (lang: $chosen)"
     info "Change language later with: leet lang <name>"
-    info "Set your cookies by running: leetcode data -c"
+    info "Set your cookies by logging into leetcode.com in your browser, then: leet sync"
 }
 
 install_mcp_server() {
@@ -366,10 +366,11 @@ configure_mcp() {
     ok "Codex MCP config written to $codex_cfg (trust this folder when codex prompts)"
 
     info ""
-    info "These configs live inside the project — launch your assistant from $PROJ_DIR."
-    warn "IMPORTANT: Set your LeetCode session cookie: leetcode data -c"
-    info "  The cookie is stored once in ~/.leetcode/leetcode.toml."
-    info "  Both leetcode-cli and the MCP server read from there — no need to edit MCP configs."
+    info "These configs live inside the project. Launch your assistant from $PROJ_DIR."
+    warn "IMPORTANT: log into leetcode.com in your browser, then run: leet sync"
+    info "  leet sync pulls the live session from any Firefox-family browser into"
+    info "  ~/.leetcode/leetcode.toml. Both leetcode-cli and the MCP server read from"
+    info "  there, and 'leet test/submit' auto-re-syncs when the session goes stale."
 }
 
 install_skill() {
@@ -447,7 +448,7 @@ main() {
 
     echo ""
     echo -e "${GREEN}Quick start:${NC}"
-    echo "  1. Set your LeetCode cookies:  leetcode data -c"
+    echo "  1. Log into leetcode.com in your browser, then:  leet sync"
     echo "  2. Pick a problem:             leet pick two-sum"
     echo "  3. Edit in helix:              leet edit 1"
     echo "  4. Test:                       leet test 1"

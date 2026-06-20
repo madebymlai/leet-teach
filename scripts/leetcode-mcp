@@ -7,6 +7,8 @@
 LEET_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # shellcheck source=leet-toml.sh
 source "$LEET_DIR/leet-toml.sh"
+# shellcheck source=leet-cookies.sh
+source "$LEET_DIR/leet-cookies.sh"
 
 # --- pure helpers (no I/O, testable) ---
 
@@ -29,6 +31,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         echo "leetcode-mcp: $LC_TOML not found. Run scripts/setup.sh first." >&2
         exit 1
     }
+
+    # Best-effort: the server reads the cookie once at startup and can't retry on a
+    # stale session mid-run (unlike `leet test`/`submit`), so refresh from the browser
+    # now. cookies_sync writes status to stderr only, keeping stdout protocol-clean;
+    # on failure (browser closed, not logged in) we fall back to the stored cookie.
+    # Opt out with LEET_MCP_NO_SYNC=1.
+    [ "${LEET_MCP_NO_SYNC:-}" = 1 ] || cookies_sync "$LC_TOML" || true
 
     content=$(cat "$LC_TOML")
     session=$(toml_get "$content" "session")

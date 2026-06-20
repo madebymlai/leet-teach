@@ -10,6 +10,8 @@ export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 source "$LEET_DIR/leet-languages.sh"
 # shellcheck source=leet-toml.sh
 source "$LEET_DIR/leet-toml.sh"
+# shellcheck source=leet-cookies.sh
+source "$LEET_DIR/leet-cookies.sh"
 
 usage() {
     cat <<EOF
@@ -23,6 +25,7 @@ Commands:
   test <id>        Test solution (runs in current pane)
   submit <id>      Submit solution (runs in current pane)
   lang [name]      Show/choose problem language (picker if no arg)
+  sync             Pull the live LeetCode cookie from your browser into leetcode.toml
   close            Close the helix pane
 
 Examples:
@@ -33,6 +36,7 @@ Examples:
   $PROG submit 1        # Submit solution
   $PROG lang            # Pick language from menu
   $PROG lang rust       # Set language to rust
+  $PROG sync            # Refresh the LeetCode cookie from your browser
   $PROG close           # Close helix pane
 
 Tmux layout:
@@ -124,7 +128,29 @@ pane_command() {
 check_cookies() {
     local toml="$HOME/.leetcode/leetcode.toml"
     [ -f "$toml" ] || die "leetcode.toml not found at $toml. Run scripts/setup.sh first."
-    toml_has "$(cat "$toml")" session || die "LeetCode session cookie not set. Run: leetcode data -c"
+    if ! toml_has "$(cat "$toml")" session; then
+        # Empty (not stale) is rare — try one browser sync before giving up.
+        echo "$PROG: no session cookie set, syncing from your browser..." >&2
+        cookies_sync "$toml" \
+            || die "LeetCode session cookie not set. Log into leetcode.com in your browser, then run: $PROG sync"
+    fi
+}
+
+# run_leetcode_auth <leetcode-args...> — run leetcode, streaming combined output.
+# On a stale-cookie failure, re-sync the live cookie from the browser and retry once.
+# The retry decision (is_auth_failure) is the tested seam; this is the thin I/O around it.
+run_leetcode_auth() {
+    local out code
+    out=$(leetcode "$@" 2>&1); code=$?
+    printf '%s\n' "$out"
+    if is_auth_failure "$code" "$out"; then
+        echo "$PROG: session looks stale, re-syncing from your browser and retrying..." >&2
+        if cookies_sync "$HOME/.leetcode/leetcode.toml"; then
+            leetcode "$@"
+            return $?
+        fi
+    fi
+    return "$code"
 }
 
 # --- commands ---
@@ -212,14 +238,18 @@ do_test() {
     local id="$1"
     require_leetcode
     check_cookies
-    leetcode test "$id"
+    run_leetcode_auth test "$id"
 }
 
 do_submit() {
     local id="$1"
     require_leetcode
     check_cookies
-    leetcode exec "$id"
+    run_leetcode_auth exec "$id"
+}
+
+do_sync() {
+    cookies_sync "$HOME/.leetcode/leetcode.toml"
 }
 
 do_lang() {
@@ -268,6 +298,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         test)   [ $# -lt 1 ] && die "Usage: $PROG test <id>"; do_test "$1" ;;
         submit) [ $# -lt 1 ] && die "Usage: $PROG submit <id>"; do_submit "$1" ;;
         lang)   do_lang "${1:-}" ;;
+        sync)   do_sync ;;
         close)  close_pane ;;
         -h|--help|help) usage ;;
         *)      die "Unknown command: $cmd (see: $PROG --help)" ;;

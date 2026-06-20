@@ -14,3 +14,14 @@ toml_get() {
 toml_has() {
     [ -n "$(toml_get "$1" "$2")" ]
 }
+
+# toml_set <content> <key> <value> — content with key's first quoted value
+# replaced by <value>, preserving the existing quote character and indentation.
+# Absent keys leave content unchanged (callers seed cookie keys via setup.sh).
+# Values are cookie tokens / hostnames (no newlines), so a one-line sed is enough;
+# we escape the sed-replacement metacharacters (\ & |) to stay literal.
+toml_set() {
+    local content="$1" key="$2" value="$3" esc
+    esc=$(printf '%s' "$value" | sed -e 's/[\\&|]/\\&/g')
+    sed -E "s|^([[:space:]]*${key}[[:space:]]*=[[:space:]]*)(['\"])[^'\"]*\2|\1\2${esc}\2|" <<< "$content"
+}
