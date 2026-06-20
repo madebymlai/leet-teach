@@ -141,6 +141,49 @@ test_do_pick_shapes_args_and_threads_id_to_pane_edit() {
     rm -f "$argfile"
 }
 
+# --- run_leetcode_auth (auth-aware runner: precondition + reactive retry) ---
+# The single entry point for leet test/submit. Collaborators (leetcode, cookies_sync)
+# are stubbed; session presence is driven through the real toml via the LEETCODE_TOML seam.
+
+test_run_leetcode_auth_syncs_when_session_missing() {
+    local tmp; tmp=$(mktemp -d)
+    printf '%s\n' "[cookies]" "session = ''" > "$tmp/leetcode.toml"   # cold start: empty session
+    leetcode() { printf 'Accepted\n'; }                               # succeeds once synced
+    cookies_sync() { echo synced > "$tmp/synced"; }                   # record the precondition sync
+    LEETCODE_TOML="$tmp/leetcode.toml" run_leetcode_auth test 1 >/dev/null
+    assert_eq "missing session triggers a precondition sync" \
+        "$([ -f "$tmp/synced" ] && echo yes || echo no)" "yes"
+    rm -rf "$tmp"
+}
+
+test_run_leetcode_auth_resyncs_and_retries_on_stale_cookie() {
+    local tmp; tmp=$(mktemp -d)
+    printf '%s\n' "[cookies]" "session = 'LIVE'" > "$tmp/leetcode.toml"  # session present
+    # First call reports a stale cookie and fails; the retry (post re-sync) succeeds.
+    leetcode() {
+        echo call >> "$tmp/calls"
+        if [ "$(wc -l < "$tmp/calls")" -eq 1 ]; then printf 'cookies seems expired\n'; return 1; fi
+        printf 'Accepted\n'
+    }
+    cookies_sync() { echo synced > "$tmp/synced"; }
+    LEETCODE_TOML="$tmp/leetcode.toml" run_leetcode_auth test 1 >/dev/null
+    assert_eq "stale cookie triggers a re-sync" "$([ -f "$tmp/synced" ] && echo yes || echo no)" "yes"
+    assert_eq "leetcode is retried once after the re-sync" "$(wc -l < "$tmp/calls" | tr -d ' ')" "2"
+    rm -rf "$tmp"
+}
+
+test_run_leetcode_auth_skips_sync_when_session_present_and_run_clean() {
+    local tmp; tmp=$(mktemp -d)
+    printf '%s\n' "[cookies]" "session = 'LIVE'" > "$tmp/leetcode.toml"  # session present
+    leetcode() { echo call >> "$tmp/calls"; printf 'Accepted\n'; }       # clean success
+    cookies_sync() { echo synced > "$tmp/synced"; }
+    LEETCODE_TOML="$tmp/leetcode.toml" run_leetcode_auth test 1 >/dev/null
+    assert_eq "no sync when session present and run is clean" \
+        "$([ -f "$tmp/synced" ] && echo yes || echo no)" "no"
+    assert_eq "leetcode runs exactly once" "$(wc -l < "$tmp/calls" | tr -d ' ')" "1"
+    rm -rf "$tmp"
+}
+
 # --- run ---
 
 test_parse_problem_id_extracts_first_bracketed_id
@@ -159,5 +202,8 @@ test_plan_lang_change_rejects_unsupported_language
 test_plan_lang_change_preserves_unrelated_lines
 test_do_lang_writes_chosen_language_to_the_toml
 test_do_pick_shapes_args_and_threads_id_to_pane_edit
+test_run_leetcode_auth_syncs_when_session_missing
+test_run_leetcode_auth_resyncs_and_retries_on_stale_cookie
+test_run_leetcode_auth_skips_sync_when_session_present_and_run_clean
 
 finish

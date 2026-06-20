@@ -125,27 +125,29 @@ pane_command() {
     tmux display-message -p -t "$1" '#{pane_current_command}'
 }
 
-check_cookies() {
-    local toml; toml=$(toml_path)
-    [ -f "$toml" ] || die "leetcode.toml not found at $toml. Run scripts/setup.sh first."
+# run_leetcode_auth <leetcode-args...> — the auth-aware entry point for leet test/submit.
+# Ensures a session exists (an empty cookie is rare; sync once from the browser, give up
+# only if that can't produce one), runs leetcode streaming combined output, and on a
+# stale-cookie failure re-syncs and retries once.
+# is_auth_failure is the tested seam; collaborators (leetcode, cookies_sync) are stubbed
+# in leet_test.sh, so the whole precondition → run → retry thread is covered.
+run_leetcode_auth() {
+    local toml out code
+    toml=$(toml_path)
+    # Precondition: a session must exist. An empty cookie (cold start) is rare; sync
+    # once from the browser, and give up only if that can't produce a session.
     if ! toml_has "$(toml_load "$toml")" session; then
-        # Empty (not stale) is rare — try one browser sync before giving up.
         echo "$PROG: no session cookie set, syncing from your browser..." >&2
         cookies_sync "$toml" \
             || die "LeetCode session cookie not set. Log into leetcode.com in your browser, then run: $PROG sync"
     fi
-}
-
-# run_leetcode_auth <leetcode-args...> — run leetcode, streaming combined output.
-# On a stale-cookie failure, re-sync the live cookie from the browser and retry once.
-# The retry decision (is_auth_failure) is the tested seam; this is the thin I/O around it.
-run_leetcode_auth() {
-    local out code
-    out=$(leetcode "$@" 2>&1); code=$?
+    # Capture as a && / || list so `leetcode` failing (e.g. a stale cookie) doesn't
+    # trip `set -e` before we reach the retry decision below.
+    out=$(leetcode "$@" 2>&1) && code=0 || code=$?
     printf '%s\n' "$out"
     if is_auth_failure "$code" "$out"; then
         echo "$PROG: session looks stale, re-syncing from your browser and retrying..." >&2
-        if cookies_sync "$(toml_path)"; then
+        if cookies_sync "$toml"; then
             leetcode "$@"
             return $?
         fi
@@ -237,14 +239,12 @@ do_pick() {
 do_test() {
     local id="$1"
     require_leetcode
-    check_cookies
     run_leetcode_auth test "$id"
 }
 
 do_submit() {
     local id="$1"
     require_leetcode
-    check_cookies
     run_leetcode_auth exec "$id"
 }
 
