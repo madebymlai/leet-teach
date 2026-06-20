@@ -1,39 +1,83 @@
 # LeetCode DSA Glossary
 
-Domain language for LeetCode practice with terminal workflow and AI coaching.
+The canonical language for this LeetCode DSA workspace: its tools, its coaching method, and the algorithm patterns practised here.
 
 ## Tools
 
-**leetcode-cli**: The clearloop Rust CLI tool (`cargo install leetcode-cli`) for scaffolding, testing, and submitting LeetCode problems from the terminal. Not the stale Node.js skygragon version.
+**leetcode-cli**:
+The clearloop Rust command-line tool (`cargo install leetcode-cli`) for fetching, testing, and submitting problems from the terminal.
+_Avoid_: the skygragon Node.js CLI (stale, not this one)
 
-**leetcode-mcp-server**: The jinzcdev MCP server (`npx -y @jinzcdev/leetcode-mcp-server`) that gives AI assistants direct access to LeetCode's GraphQL API — search problems, run code, submit solutions, check stats.
+**leetcode-mcp-server**:
+The jinzcdev MCP server (`@jinzcdev/leetcode-mcp-server`) that exposes LeetCode's API to the AI coach as callable tools.
 
-**helix**: Terminal modal editor (`hx` command), configured as the default editor for leetcode-cli. Fast, LSP-aware, no plugins needed.
+**leet**:
+This repo's wrapper script that runs leetcode-cli inside a tmux pane (`leet pick|test|submit`) and keeps the session cookie fresh.
 
-**MCP (Model Context Protocol)**: The protocol AI assistants (Claude, Codex, OpenCode) use to access external tools. Configured via JSON in each assistant's config directory.
+**helix**:
+The terminal modal editor (`hx`), set as leetcode-cli's default editor.
+_Avoid_: Vim, "the IDE"
 
-## DSA Concepts
+**MCP (Model Context Protocol)**:
+The protocol an AI assistant uses to call external tools such as the leetcode-mcp-server.
 
-**Zone of proximal development**: The space between what you can solve independently and what you can solve with help. Problems in this zone produce the most learning.
+## Learning
 
-**Spaced repetition**: Revisiting problems at increasing intervals (1 day → 3 days → 7 days → 14 days) to build long-term retention. Unlike Anki flashcards, DSA spaced repetition requires re-solving, not just recalling.
+**Zone of proximal development (ZPD)**:
+The band of problems a learner can clear only with light coaching, just past independent reach, where practice produces the most learning.
+_Avoid_: difficulty level, comfort zone
 
-**Pattern recognition**: Identifying that a new problem belongs to a known template (two pointers, sliding window, BFS, etc.). The key skill for interviews.
+**Active recall**:
+Producing the pattern, approach, or syntax from memory before seeing any confirmation, rather than recognising it once shown.
+_Avoid_: review, re-reading
 
-**Time complexity**: Big O analysis of how runtime scales with input size. Always discuss after solving.
+**Spaced repetition**:
+Re-solving a problem at widening intervals to build storage strength. The unit is re-solving the problem, not recalling a fact.
+_Avoid_: cramming, drilling
 
-**Space complexity**: Big O analysis of memory usage. Often the difference between an optimal and suboptimal solution.
+**Storage strength**:
+How durably knowledge is retained over time, as opposed to how fast it can be retrieved right now (fluency). Spaced repetition builds it; cramming does not.
+_Avoid_: memorisation
 
-_Avoid_: Big-O (use "Big O" instead), complexity analysis (use "time/space complexity" to be specific).
+**Pattern**:
+A reusable solution template that many problems reduce to. In this workspace "pattern" always means this, never an object-oriented design pattern.
+_Avoid_: trick, formula
 
-## Problem Categories
+**Pattern recognition**:
+Matching an unseen problem to a known pattern. The core interview skill.
 
-**Two pointers**: Technique using two indices/pointers moving through an array, often from opposite ends. Use for: sorted array searches, palindrome checks, container-with-most-water.
+## Complexity
 
-**Sliding window**: Subset of two pointers where a "window" of elements slides through an array. Use for: substring problems, subarray sums, longest/shortest subsequence.
+**Big O**:
+Notation for how a solution's cost grows as input size grows, ignoring constant factors.
+_Avoid_: Big-O, order notation
 
-**BFS/DFS**: Breadth-first and depth-first graph traversal. BFS for shortest path, DFS for exhaustive search.
+**Time complexity**:
+A solution's running time as Big O of the input size.
+_Avoid_: speed, "complexity" left unqualified
 
-**Dynamic programming (DP)**: Breaking a problem into overlapping subproblems with optimal substructure. Memoization (top-down) or tabulation (bottom-up).
+**Space complexity**:
+A solution's extra memory use as Big O of the input size, often the line between an optimal and a suboptimal answer.
+_Avoid_: memory cost, "complexity" left unqualified
 
-**Greedy**: Making locally optimal choices at each step. Works when the problem has the greedy-choice property.
+## Patterns
+
+**Two pointers**:
+A scan that walks two indices through a sequence, often inward from opposite ends, to replace a nested loop with one linear pass.
+_Avoid_: two-pointer trick
+
+**Sliding window**:
+A two pointers variant that keeps a contiguous range whose ends advance to preserve an invariant; used for substring and subarray problems.
+
+**Breadth-first search (BFS)**:
+Level-by-level traversal of a graph or tree using a queue; the basis for shortest paths in an unweighted graph.
+
+**Depth-first search (DFS)**:
+Traversal that follows one branch to its end before backtracking, via recursion or a stack; the basis for exhaustive search.
+
+**Dynamic programming (DP)**:
+Solving a problem by caching and combining solutions to overlapping subproblems that share optimal substructure, either top-down (memoization) or bottom-up (tabulation).
+_Avoid_: brute force with a cache
+
+**Greedy**:
+Building a solution from locally optimal choices, valid only when the problem has the greedy-choice property.
