@@ -1,4 +1,4 @@
-# Add to ~/.codex/config.toml
+# Project-local: .codex/config.toml in your project root (trust the folder when codex prompts).
 # The launcher reads the session from ~/.leetcode/leetcode.toml at runtime.
 
 [mcp_servers.leetcode]

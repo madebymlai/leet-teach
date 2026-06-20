@@ -3,7 +3,9 @@
     "leetcode": {
       "type": "local",
       "enabled": true,
-      "command": ["~/.local/bin/leetcode-mcp"]
+      "command": [
+        "~/.local/bin/leetcode-mcp"
+      ]
     }
   }
 }

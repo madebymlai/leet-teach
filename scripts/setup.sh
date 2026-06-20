@@ -9,6 +9,8 @@ SKILLS_VERSION="latest"
 PROJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=leet-languages.sh
 source "$PROJ_DIR/scripts/leet-languages.sh"
+# shellcheck source=leet-mcp.sh
+source "$PROJ_DIR/scripts/leet-mcp.sh"
 # shellcheck source=leet-toml.sh
 source "$PROJ_DIR/scripts/leet-toml.sh"
 
@@ -334,113 +336,37 @@ install_leet() {
     ok "leet symlinked to $HOME/.local/bin/leet"
 }
 
-write_mcp_claude() {
-    local path="$1"
-    [ -f "$path" ] && { warn "Backing up Claude Desktop config"; cp "$path" "$path.bak"; }
-    export LEET_MCP_CONFIG_PATH="$path"
-    python3 << 'PY'
-import json, os
-path = os.environ['LEET_MCP_CONFIG_PATH']
-launcher = os.environ['LEET_MCP_LAUNCHER']
-cfg = {}
-if os.path.exists(path):
-    with open(path) as f:
-        cfg = json.load(f)
-servers = cfg.setdefault('mcpServers', {})
-servers['leetcode'] = {"type": "stdio", "command": launcher}
-with open(path, 'w') as f:
-    json.dump(cfg, f, indent=2)
-PY
-    ok "Claude Desktop MCP config written (leetcode server merged)"
-}
-
-write_mcp_codex() {
-    local path="$1"
-    if [ -f "$path" ]; then
-        # Remove old leetcode MCP entries (headers + their body lines until next section/EOF)
-        awk '
-            /^\[mcp_servers\.leetcode/ { skip=1; next }
-            skip && /^\[/ && !/^\[mcp_servers\.leetcode/ { skip=0 }
-            skip { next }
-            { print }
-        ' "$path" > "$path.tmp" && mv "$path.tmp" "$path"
-    fi
-    cat >> "$path" << CODEXMCP
-
-# leet-teach: leetcode MCP server (reads session from ~/.leetcode/leetcode.toml)
-[mcp_servers.leetcode]
-command = "${LEET_MCP_LAUNCHER}"
-CODEXMCP
-    ok "Codex MCP config written to $path"
-}
-
-write_mcp_opencode() {
-    local path="$1"
-    [ -f "$path" ] && { warn "Backing up OpenCode config"; cp "$path" "$path.bak"; }
-    export LEET_MCP_CONFIG_PATH="$path"
-    python3 << 'PY'
-import json, os
-path = os.environ['LEET_MCP_CONFIG_PATH']
-launcher = os.environ['LEET_MCP_LAUNCHER']
-cfg = {}
-if os.path.exists(path):
-    with open(path) as f:
-        cfg = json.load(f)
-mcp = cfg.setdefault('mcp', {})
-mcp['leetcode'] = {"type": "local", "enabled": True, "command": [launcher]}
-with open(path, 'w') as f:
-    json.dump(cfg, f, indent=2)
-PY
-    ok "OpenCode MCP config written (leetcode server merged)"
-}
-
-write_mcp_templates() {
-    info "Refreshing MCP config templates in $PROJ_DIR/mcp-configs/"
-    cat > "$PROJ_DIR/mcp-configs/claude-desktop.json" << 'EOF'
-{
-  "mcpServers": {
-    "leetcode": {
-      "type": "stdio",
-      "command": "~/.local/bin/leetcode-mcp"
-    }
-  }
-}
-EOF
-    cat > "$PROJ_DIR/mcp-configs/codex.toml" << 'EOF'
-# Add to ~/.codex/config.toml
-# The launcher reads the session from ~/.leetcode/leetcode.toml at runtime.
-
-[mcp_servers.leetcode]
-command = "~/.local/bin/leetcode-mcp"
-EOF
-    cat > "$PROJ_DIR/mcp-configs/opencode.json" << 'EOF'
-{
-  "mcp": {
-    "leetcode": {
-      "type": "local",
-      "enabled": true,
-      "command": ["~/.local/bin/leetcode-mcp"]
-    }
-  }
-}
-EOF
-    ok "MCP config templates refreshed"
-}
-
 configure_mcp() {
-    info "Configuring MCP for Claude, Codex, and OpenCode..."
+    info "Configuring project-local MCP for Claude Code, Codex, and OpenCode..."
     command -v python3 >/dev/null || die "python3 required to merge MCP configs"
     local launcher="$HOME/.local/bin/leetcode-mcp"
     [ -x "$launcher" ] || die "launcher not installed at $launcher. Run setup with mcp-launcher step."
-    export LEET_MCP_LAUNCHER="$launcher"
 
-    mkdir -p "$HOME/.config/claude" "$HOME/.codex" "$HOME/.config/opencode"
-    write_mcp_claude   "$HOME/.config/claude/claude_desktop_config.json"
-    write_mcp_codex    "$HOME/.codex/config.toml"
-    write_mcp_opencode "$HOME/.config/opencode/config.json"
-    write_mcp_templates
+    # Project-local scope: write each assistant's config inside this folder so the
+    # leetcode MCP server is only active for assistants launched from here — never
+    # registered globally. Each path is the project-scope location for its tool.
+    local claude_cfg="$PROJ_DIR/.mcp.json"                 # Claude Code, project scope
+    local opencode_cfg="$PROJ_DIR/opencode.json"           # OpenCode, project config
+    local codex_cfg="$PROJ_DIR/.codex/config.toml"         # Codex, trusted-project config
+    mkdir -p "$PROJ_DIR/.codex"
+
+    # Each writer is the single source of its assistant's entry shape (see
+    # scripts/leet-mcp.sh); the committed mcp-configs/ templates are rendered from
+    # these same cores, so setup no longer regenerates them here.
+    mcp_backup_once "$claude_cfg"
+    mcp_write_json "$claude_cfg" claude "$launcher"
+    ok "Claude Code MCP config written to $claude_cfg (project scope)"
+
+    mcp_backup_once "$opencode_cfg"
+    mcp_write_json "$opencode_cfg" opencode "$launcher"
+    ok "OpenCode MCP config written to $opencode_cfg (project scope)"
+
+    mcp_backup_once "$codex_cfg"
+    mcp_write_codex "$codex_cfg" "$launcher"
+    ok "Codex MCP config written to $codex_cfg (trust this folder when codex prompts)"
 
     info ""
+    info "These configs live inside the project — launch your assistant from $PROJ_DIR."
     warn "IMPORTANT: Set your LeetCode session cookie: leetcode data -c"
     info "  The cookie is stored once in ~/.leetcode/leetcode.toml."
     info "  Both leetcode-cli and the MCP server read from there — no need to edit MCP configs."

@@ -5,7 +5,7 @@ LeetCode practice workspace with AI-assisted coaching. Uses helix editor, leetco
 ## Quick Start
 
 ```bash
-cd ~/git/computer-science/leet
+cd leet-teach
 chmod +x scripts/setup.sh
 ./scripts/setup.sh
 ```
@@ -13,9 +13,15 @@ chmod +x scripts/setup.sh
 This installs and configures:
 - **helix** — modal editor with LSP support
 - **leetcode-cli** (clearloop) — problem scaffolding, testing, submission
-- **leetcode-mcp-server** — AI tools for Claude/Codex/OpenCode
+- **leetcode-mcp-server** — AI tools for Claude/Codex/OpenCode (project-local)
 - **teach skill** — mattpocock's teaching framework (project-local)
 - **leetcode skill** — custom DSA coaching skill
+
+> **MCP is configured project-local.** `setup.sh` writes `.mcp.json`, `opencode.json`,
+> and `.codex/config.toml` *inside this folder* — the leetcode MCP server is only active
+> for assistants launched from here, never registered globally. Run `claude` / `opencode` /
+> `codex` from the project root (and trust the folder when Codex prompts). These generated
+> files are git-ignored; `mcp-configs/` holds committed shape references.
 
 ## After Setup
 
@@ -74,24 +80,31 @@ DSA coaching skill. Provides:
 
 ```
 leet-teach/
-├── scripts/
-│   └── setup.sh              # One-command setup
-├── mcp-configs/              # MCP config templates
-│   ├── claude-desktop.json
-│   ├── codex.json
-│   └── opencode.json
-├── .skills/                  # Downloaded skills
-│   └── teach/                # mattpocock teach skill
-├── skill.yaml                # Leetcode skill definition
-├── SKILL.md                  # Leetcode skill instructions
-├── lessons/                  # Teaching lessons (generated)
-├── learning-records/         # Learning progress (generated)
-├── reference/                # Reference docs (generated)
-├── MISSION.md                # Learning mission (generated)
-├── RESOURCES.md              # Resource list (generated)
-├── NOTES.md                  # Scratch notes (generated)
-└── GLOSSARY.md               # Term glossary (generated)
+├── scripts/                  # Bash workspace tooling (+ *_test.sh unit tests)
+│   ├── setup.sh              #   one-command, idempotent setup
+│   ├── leet                  #   workflow launcher (pick/edit/test/submit in tmux)
+│   ├── leetcode-mcp          #   leetcode MCP server launcher
+│   ├── leet-toml.sh          #   single reader for ~/.leetcode/leetcode.toml
+│   ├── leet-languages.sh     #   supported-language registry
+│   └── leet-mcp.sh           #   project-local MCP registration (single-sourced shapes)
+├── mcp-configs/              # Committed MCP shape references (rendered, drift-tested)
+│   ├── claude-desktop.json   #   mcpServers shape → project .mcp.json
+│   ├── codex.toml            #   [mcp_servers] shape → project .codex/config.toml
+│   └── opencode.json         #   mcp shape → project opencode.json
+├── skills/
+│   └── leetcode/             # Custom leetcode coaching skill (SKILL.md, REFERENCE.md)
+├── docs/                     # Design docs / ADRs
+├── assets/                   # Static assets
+├── lessons/                  # Teaching lessons (teach output; created empty by setup)
+├── learning-records/         # Learning progress (teach output)
+├── reference/                # Reference docs (teach output)
+├── MISSION.md                # Learning mission (committed; teach-managed)
+├── RESOURCES.md              # Resource list (committed; teach-managed)
+└── GLOSSARY.md               # Term glossary (committed; teach-managed)
 ```
+
+> Generated at setup but git-ignored, so not shown above: `.mcp.json`,
+> `opencode.json`, `.codex/config.toml` (project-local MCP configs).
 
 ## Customization
 
