@@ -28,19 +28,19 @@ tmux send-keys -t leet-edit ':w' Enter
 ## leetcode-mcp-server tools
 
 ### Problems
-- `get_daily_challenge` — today's daily problem
-- `get_problem(titleSlug)` — full problem description, constraints, examples
-- `search_problems(tags, difficulty, searchKeywords, limit)` — find problems by topic
+- `get_daily_challenge`: today's daily problem
+- `get_problem(titleSlug)`: full problem description, constraints, examples
+- `search_problems(tags, difficulty, searchKeywords, limit)`: find problems by topic
 
 ### Submissions
-- `run_code(titleSlug, lang, typedCode)` — run code on LeetCode judge (auth required)
-- `submit_solution(titleSlug, lang, typedCode)` — submit to LeetCode (auth required)
+- `run_code(titleSlug, lang, typedCode)`: run code on LeetCode judge (auth required)
+- `submit_solution(titleSlug, lang, typedCode)`: submit to LeetCode (auth required)
 
 ### User data
-- `get_user_profile(username)` — profile info
-- `get_problem_progress()` — what you've solved (auth required)
-- `get_recent_ac_submissions(username, limit)` — recent accepted submissions
-- `list_problem_solutions(questionSlug)` — community solutions
+- `get_user_profile(username)`: profile info
+- `get_problem_progress()`: what you've solved (auth required)
+- `get_recent_ac_submissions(username, limit)`: recent accepted submissions
+- `list_problem_solutions(questionSlug)`: community solutions
 
 ## Language config
 
