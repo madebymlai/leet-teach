@@ -10,6 +10,8 @@
 
 LEET_MCP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LEET_MCP_CONFIGS_DIR="$(cd "$LEET_MCP_DIR/.." && pwd)/mcp-configs"
+# shellcheck source=leet-config.sh
+source "$LEET_MCP_DIR/leet-config.sh"   # backup_once (the single backup policy)
 
 # The launcher path recorded in the committed templates: the tilde (documentation)
 # form, vs the absolute path the live writers record. The tilde is meant to stay
@@ -31,13 +33,10 @@ MCP_ASSISTANTS=(
     "codex:toml:.codex/config.toml:codex.toml"
 )
 
-# Back up <path> to <path>.bak exactly once: skip if the file is absent, and
-# never overwrite an existing .bak (so re-runs can't clobber the pristine copy).
+# Back up <path> to <path>.bak exactly once. Delegates to the single backup policy in
+# leet-config.sh (backup_once) so every caller in the project shares one behaviour.
 mcp_backup_once() {
-    local path="$1"
-    [ -f "$path" ] || return 0
-    [ -f "$path.bak" ] && return 0
-    cp "$path" "$path.bak"
+    backup_once "$1"
 }
 
 # Merge the leetcode entry for <assistant> into the JSON config at <path>,

@@ -13,6 +13,8 @@ source "$PROJ_DIR/scripts/leet-languages.sh"
 source "$PROJ_DIR/scripts/leet-mcp.sh"
 # shellcheck source=leet-toml.sh
 source "$PROJ_DIR/scripts/leet-toml.sh"
+# shellcheck source=leet-config.sh
+source "$PROJ_DIR/scripts/leet-config.sh"   # write_managed_block / append_managed_block / backup_once
 
 # TTY-guarded colors
 if [ -t 1 ]; then
@@ -64,17 +66,10 @@ install_helix() {
     return 1
 }
 
-configure_helix() {
-    info "Configuring helix for LeetCode..."
-    local HELIX_CONFIG_DIR="$HOME/.config/helix"
-    mkdir -p "$HELIX_CONFIG_DIR"
-
-    if ! grep -q "# leet-teach-config" "$HELIX_CONFIG_DIR/config.toml" 2>/dev/null; then
-        if [ -f "$HELIX_CONFIG_DIR/config.toml" ]; then
-            warn "Backing up existing helix config.toml"
-            cp "$HELIX_CONFIG_DIR/config.toml" "$HELIX_CONFIG_DIR/config.toml.bak"
-        fi
-        cat > "$HELIX_CONFIG_DIR/config.toml" << 'HELIXCONFIG'
+# Render fns: emit a file body (with its marker) on stdout. write_managed_block owns
+# the marker check, backup, and write — these own only the bytes.
+_render_helix_config() {
+    cat << 'HELIXCONFIG'
 # leet-teach-config
 [editor]
 line-number = "relative"
@@ -101,13 +96,10 @@ display-messages = true
 auto-signature-help = true
 display-inlay-hints = true
 HELIXCONFIG
-        ok "helix config written to $HELIX_CONFIG_DIR/config.toml"
-    else
-        info "helix config.toml already managed by leet-teach, skipping"
-    fi
+}
 
-    if ! grep -q "# leet-teach-languages" "$HELIX_CONFIG_DIR/languages.toml" 2>/dev/null; then
-        cat > "$HELIX_CONFIG_DIR/languages.toml" << 'LANGSCONFIG'
+_render_helix_languages() {
+    cat << 'LANGSCONFIG'
 # leet-teach-languages
 [language-server.pyright]
 command = "pyright-langserver"
@@ -159,37 +151,54 @@ language-servers = ["gopls"]
 name = "dart"
 language-servers = ["dart-language-server"]
 LANGSCONFIG
+}
+
+configure_helix() {
+    info "Configuring helix for LeetCode..."
+    local HELIX_CONFIG_DIR="$HOME/.config/helix"
+    mkdir -p "$HELIX_CONFIG_DIR"
+
+    if write_managed_block "$HELIX_CONFIG_DIR/config.toml" "# leet-teach-config" _render_helix_config; then
+        ok "helix config written to $HELIX_CONFIG_DIR/config.toml"
+    else
+        info "helix config.toml already managed by leet-teach, skipping"
+    fi
+
+    if write_managed_block "$HELIX_CONFIG_DIR/languages.toml" "# leet-teach-languages" _render_helix_languages; then
         ok "helix languages.toml written"
     else
         info "helix languages.toml already managed by leet-teach, skipping"
     fi
 }
 
+# Render fns: emit a tmux snippet (with its sentinel) on stdout. append_managed_block
+# owns the sentinel check and the append — these own only the bytes.
+_render_tmux_mouse() {
+    echo ""
+    echo "# leet-teach: enable mouse"
+    echo "set -g mouse on"
+}
+
+_render_tmux_panes() {
+    echo ""
+    echo "# leet-teach: Alt+arrow pane switching"
+    echo 'bind -n M-Up select-pane -U'
+    echo 'bind -n M-Down select-pane -D'
+    echo 'bind -n M-Left select-pane -L'
+    echo 'bind -n M-Right select-pane -R'
+}
+
 configure_tmux() {
     info "Configuring tmux..."
     local TMUX_CONFIG="$HOME/.tmux.conf"
-    touch "$TMUX_CONFIG"
 
-    if ! grep -q "set -g mouse on" "$TMUX_CONFIG" 2>/dev/null; then
-        {
-            echo ""
-            echo "# leet-teach: enable mouse"
-            echo "set -g mouse on"
-        } >> "$TMUX_CONFIG"
+    if append_managed_block "$TMUX_CONFIG" "set -g mouse on" _render_tmux_mouse; then
         ok "tmux mouse enabled"
     else
         info "tmux mouse already enabled"
     fi
 
-    if ! grep -q "Alt-Up" "$TMUX_CONFIG" 2>/dev/null; then
-        {
-            echo ""
-            echo "# leet-teach: Alt+arrow pane switching"
-            echo 'bind -n M-Up select-pane -U'
-            echo 'bind -n M-Down select-pane -D'
-            echo 'bind -n M-Left select-pane -L'
-            echo 'bind -n M-Right select-pane -R'
-        } >> "$TMUX_CONFIG"
+    if append_managed_block "$TMUX_CONFIG" "# leet-teach: Alt+arrow pane switching" _render_tmux_panes; then
         ok "Alt+arrow pane switching configured"
     else
         info "Alt+arrow pane switching already configured"
@@ -224,8 +233,8 @@ install_leetcode_cli() {
 configure_leetcode_cli() {
     info "Configuring leetcode-cli..."
     local LC_DIR="$HOME/.leetcode"
-    local toml bak
-    toml=$(toml_path); bak="$toml.bak"
+    local toml
+    toml=$(toml_path)
     mkdir -p "$LC_DIR"
 
     if grep -q "# leet-teach-config" "$toml" 2>/dev/null; then
@@ -235,20 +244,20 @@ configure_leetcode_cli() {
         return 0
     fi
 
+    # Preserve existing session/csrf/site from the current (unmanaged) config — read it
+    # live, before we back it up and overwrite. The toml is the precious source of truth,
+    # so the fresh file is still written atomically via toml_store; only the backup
+    # policy is shared (backup_once: copy once, never clobber the pristine .bak).
+    local existing_session="" existing_csrf="" existing_site="leetcode.com"
     if [ -f "$toml" ]; then
         warn "Backing up existing leetcode.toml"
-        cp "$toml" "$bak"
+        local cur_content
+        cur_content=$(cat "$toml")
+        existing_session=$(toml_get "$cur_content" session)
+        existing_csrf=$(toml_get "$cur_content" csrf)
+        existing_site=$(toml_get "$cur_content" site)
     fi
-
-    # Preserve existing session/csrf/site from old config (if any)
-    local existing_session="" existing_csrf="" existing_site="leetcode.com"
-    if [ -f "$bak" ]; then
-        local bak_content
-        bak_content=$(cat "$bak")
-        existing_session=$(toml_get "$bak_content" session)
-        existing_csrf=$(toml_get "$bak_content" csrf)
-        existing_site=$(toml_get "$bak_content" site)
-    fi
+    backup_once "$toml"
 
     local editor_cmd
     if command -v hx &>/dev/null; then
