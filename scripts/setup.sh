@@ -397,6 +397,9 @@ install_skills() {
     info "Installing skills (mattpocock/teach + local leet-teach skill)..."
     cd "$PROJ_DIR"
     command -v npx >/dev/null || die "npx not found. Install Node.js first: https://nodejs.org/"
+    # Pre-create .claude/skills so the skills CLI wires Claude Code's project symlink: at
+    # project scope it silently skips that link when .claude is absent (vercel-labs/skills#1355).
+    mkdir -p .claude/skills
     install_skill mattpocock/skills teach
     install_skill madebymlai/leet-teach leet-teach
     ok "Skills setup complete"
