@@ -7,69 +7,48 @@
 # shellcheck disable=SC2034  # consumed by leet/setup.sh after sourcing
 SUPPORTED_LANGS="python rust cpp c java go"
 
-# lang_info <helix_name> — sets LC_LANG, LC_INJECT_BEFORE, LC_COMMENT_LEADING.
-# Returns 1 for unsupported languages.
+# lang_info <helix_name> — print one tab record "lang<TAB>inject_before<TAB>comment_leading"
+# for the language on stdout, or return 1 if unsupported. Callers parse it explicitly:
+#   IFS=$'\t' read -r lang inject comment <<< "$(lang_info "$name")"
 lang_info() {
-    # shellcheck disable=SC2034  # out-parameters consumed by callers after sourcing
-    LC_LANG="" LC_INJECT_BEFORE="" LC_COMMENT_LEADING=""
+    local lang inject comment
     case "$1" in
         python)
-            LC_LANG="python3"
-            LC_INJECT_BEFORE='["from typing import List, Optional, Dict, Set, Tuple"]'
-            LC_COMMENT_LEADING="#"
+            lang="python3"
+            inject='["from typing import List, Optional, Dict, Set, Tuple"]'
+            comment="#"
             ;;
         rust)
-            LC_LANG="rust"
-            LC_INJECT_BEFORE="[]"
-            LC_COMMENT_LEADING="//"
+            lang="rust"
+            inject="[]"
+            comment="//"
             ;;
         cpp)
-            LC_LANG="cpp"
-            LC_INJECT_BEFORE='["#include <vector>", "#include <string>", "#include <algorithm>", "using namespace std;"]'
-            LC_COMMENT_LEADING="//"
+            lang="cpp"
+            inject='["#include <vector>", "#include <string>", "#include <algorithm>", "using namespace std;"]'
+            comment="//"
             ;;
         c)
-            LC_LANG="c"
-            LC_INJECT_BEFORE='["#include <stdio.h>", "#include <stdlib.h>", "#include <string.h>"]'
-            LC_COMMENT_LEADING="//"
+            lang="c"
+            inject='["#include <stdio.h>", "#include <stdlib.h>", "#include <string.h>"]'
+            comment="//"
             ;;
         java)
-            LC_LANG="java"
-            LC_INJECT_BEFORE='["import java.util.*;"]'
-            LC_COMMENT_LEADING="//"
+            lang="java"
+            inject='["import java.util.*;"]'
+            comment="//"
             ;;
         go)
-            LC_LANG="go"
-            LC_INJECT_BEFORE="[]"
-            LC_COMMENT_LEADING="//"
+            lang="go"
+            inject="[]"
+            comment="//"
             ;;
         *)
             return 1
             ;;
     esac
+    printf '%s\t%s\t%s\n' "$lang" "$inject" "$comment"
 }
 
-# Reading the current lang out of leetcode.toml now lives in scripts/leet-toml.sh:
-# callers use `toml_get "$content" lang`.
-
-# apply_lang_to_toml <content> <lang> <inject_before_toml> <comment_leading>
-# Returns updated TOML content via stdout. Pure, testable.
-# Replaces lang/inject_before/comment_leading lines; adds comment_leading after lang if missing.
-apply_lang_to_toml() {
-    local content="$1" lang="$2" inject_before="$3" comment_leading="$4"
-    printf '%s\n' "$content" | awk -v lang="$lang" -v inj="$inject_before" -v cl="$comment_leading" '
-        /^[[:space:]]*lang[[:space:]]*=/ {
-            printf "lang = \47%s\47\n", lang
-            printf "comment_leading = \"%s\"\n", cl
-            next
-        }
-        /^[[:space:]]*inject_before[[:space:]]*=/ {
-            printf "inject_before = %s\n", inj
-            next
-        }
-        /^[[:space:]]*comment_leading[[:space:]]*=/ {
-            next
-        }
-        { print }
-    '
-}
+# Reading the current lang out of leetcode.toml lives in scripts/leet-toml.sh
+# (toml_get); applying a language to the file lives there too (apply_lang_to_toml).

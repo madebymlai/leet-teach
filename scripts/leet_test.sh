@@ -82,6 +82,48 @@ test_plan_close_no_stored_id_is_empty() {
     assert_eq "plan_close no stored id → empty plan" "$out" ""
 }
 
+# --- plan_lang_change (pure: content + helix name → new content, or fail) ---
+
+test_plan_lang_change_sets_the_chosen_language() {
+    local content out
+    content=$'[code]\nlang = \'python3\'\ninject_before = []\neditor = \'hx\''
+    out=$(plan_lang_change "$content" rust)
+    assert_eq "plan_lang_change sets lang" "$(toml_get "$out" lang)" "rust"
+}
+
+test_plan_lang_change_carries_comment_leading_for_the_language() {
+    local content out
+    content=$'[code]\nlang = \'python3\'\ncomment_leading = "#"\ninject_before = []'
+    out=$(plan_lang_change "$content" cpp)
+    assert_eq "plan_lang_change carries comment_leading" "$(toml_get "$out" comment_leading)" "//"
+}
+
+test_plan_lang_change_rejects_unsupported_language() {
+    local content
+    content=$'[code]\nlang = \'python3\''
+    assert_fails "plan_lang_change rejects unsupported" plan_lang_change "$content" kotlin
+}
+
+test_plan_lang_change_preserves_unrelated_lines() {
+    local content out
+    content=$'[code]\nlang = \'python3\'\ninject_before = []\neditor = \'hx\'\n[cookies]\nsession = \'abc\''
+    out=$(plan_lang_change "$content" rust)
+    assert_eq "plan_lang_change preserves editor" "$(toml_get "$out" editor)" "hx"
+    assert_eq "plan_lang_change preserves session" "$(toml_get "$out" session)" "abc"
+}
+
+# --- do_lang (integration: real read→plan→write through the LEETCODE_TOML seam) ---
+
+test_do_lang_writes_chosen_language_to_the_toml() {
+    local tmp; tmp=$(mktemp)
+    printf '%s\n' $'# leet-teach-config\n[code]\nlang = \'python3\'\ninject_before = []\ncomment_leading = "#"' > "$tmp"
+    require_leetcode() { :; }                               # guard: never probe the real CLI
+    LEETCODE_TOML="$tmp" do_lang rust >/dev/null
+    assert_eq "do_lang writes chosen lang to the toml" "$(toml_get "$(cat "$tmp")" lang)" "rust"
+    assert_eq "do_lang writes the language's comment_leading" "$(toml_get "$(cat "$tmp")" comment_leading)" "//"
+    rm -f "$tmp"
+}
+
 # --- do_pick wiring (effect seam: collaborators stubbed) ---
 # Verifies the pick→parse→edit thread without touching the real CLI or tmux.
 
@@ -111,6 +153,11 @@ test_plan_edit_live_other_interrupts_then_edits
 test_plan_close_live_pane_kills_then_unsets
 test_plan_close_dead_but_stored_only_unsets
 test_plan_close_no_stored_id_is_empty
+test_plan_lang_change_sets_the_chosen_language
+test_plan_lang_change_carries_comment_leading_for_the_language
+test_plan_lang_change_rejects_unsupported_language
+test_plan_lang_change_preserves_unrelated_lines
+test_do_lang_writes_chosen_language_to_the_toml
 test_do_pick_shapes_args_and_threads_id_to_pane_edit
 
 finish

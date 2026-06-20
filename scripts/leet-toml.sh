@@ -30,3 +30,26 @@ toml_set() {
     esc=$(printf '%s' "$value" | sed -e 's/[\\&|]/\\&/g')
     sed -E "s|^([[:space:]]*${key}[[:space:]]*=[[:space:]]*)(['\"])[^'\"]*\2|\1\2${esc}\2|" <<< "$content"
 }
+
+# apply_lang_to_toml <content> <lang> <inject_before_toml> <comment_leading>
+# Returns updated TOML content via stdout. Pure, testable. Owns the [code]-block
+# quoting convention: lang single-quoted, comment_leading double-quoted, inject_before
+# a raw array. Replaces those lines; adds comment_leading after lang if missing.
+apply_lang_to_toml() {
+    local content="$1" lang="$2" inject_before="$3" comment_leading="$4"
+    printf '%s\n' "$content" | awk -v lang="$lang" -v inj="$inject_before" -v cl="$comment_leading" '
+        /^[[:space:]]*lang[[:space:]]*=/ {
+            printf "lang = \47%s\47\n", lang
+            printf "comment_leading = \"%s\"\n", cl
+            next
+        }
+        /^[[:space:]]*inject_before[[:space:]]*=/ {
+            printf "inject_before = %s\n", inj
+            next
+        }
+        /^[[:space:]]*comment_leading[[:space:]]*=/ {
+            next
+        }
+        { print }
+    '
+}

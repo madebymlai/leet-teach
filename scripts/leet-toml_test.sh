@@ -142,7 +142,7 @@ test_toml_set_absent_key_unchanged() {
 
 test_toml_path_defaults_to_home_leetcode() {
     local out
-    out=$(LEETCODE_TOML= toml_path)
+    out=$(LEETCODE_TOML='' toml_path)
     assert_eq "toml_path defaults to ~/.leetcode/leetcode.toml" "$out" "$HOME/.leetcode/leetcode.toml"
 }
 
@@ -150,6 +150,52 @@ test_toml_path_honors_env_override() {
     local out
     out=$(LEETCODE_TOML=/tmp/custom.toml toml_path)
     assert_eq "toml_path honors LEETCODE_TOML override" "$out" "/tmp/custom.toml"
+}
+
+# --- apply_lang_to_toml ---
+
+test_apply_lang_replaces_lang_line() {
+    local content updated
+    content=$'[code]\nlang = \'python3\'\neditor = \'hx\''
+    updated=$(apply_lang_to_toml "$content" "rust" "[]" "//")
+    assert_eq "apply_lang replaces lang" "$(toml_get "$updated" lang)" "rust"
+}
+
+test_apply_lang_replaces_inject_before() {
+    local content updated
+    content=$'[code]\ninject_before = ["from typing import List"]'
+    updated=$(apply_lang_to_toml "$content" "rust" "[]" "//")
+    assert_succeeds "apply_lang replaces inject_before" grep -q 'inject_before = \[\]' <<< "$updated"
+}
+
+test_apply_lang_adds_comment_leading_if_missing() {
+    local content updated
+    content=$'[code]\nlang = \'python3\'\neditor = \'hx\''
+    updated=$(apply_lang_to_toml "$content" "rust" "[]" "//")
+    assert_succeeds "apply_lang adds comment_leading" grep -q 'comment_leading = "//"' <<< "$updated"
+}
+
+test_apply_lang_replaces_existing_comment_leading() {
+    local content updated
+    content=$'[code]\ncomment_leading = "#"\nlang = \'python3\''
+    updated=$(apply_lang_to_toml "$content" "rust" "[]" "//")
+    assert_succeeds "apply_lang replaces comment_leading" grep -q 'comment_leading = "//"' <<< "$updated"
+}
+
+test_apply_lang_preserves_other_lines() {
+    local content updated
+    content=$'[code]\nlang = \'python3\'\neditor = \'hx\'\n[cookies]\nsession = \'abc\''
+    updated=$(apply_lang_to_toml "$content" "rust" "[]" "//")
+    assert_succeeds "apply_lang preserves editor" grep -q "editor = 'hx'" <<< "$updated"
+    assert_succeeds "apply_lang preserves session" grep -q "session = 'abc'" <<< "$updated"
+}
+
+test_apply_lang_no_duplicate_comment_leading_on_reswitch() {
+    local content updated count
+    content=$'[code]\nlang = \'rust\'\ncomment_leading = "//"\neditor = \'hx\''
+    updated=$(apply_lang_to_toml "$content" "cpp" '[]' "//")
+    count=$(echo "$updated" | grep -c 'comment_leading')
+    assert_eq "no duplicate comment_leading on re-switch" "$count" "1"
 }
 
 # --- run ---
@@ -174,5 +220,11 @@ test_toml_set_handles_jwt_with_dots_and_dashes
 test_toml_set_absent_key_unchanged
 test_toml_path_defaults_to_home_leetcode
 test_toml_path_honors_env_override
+test_apply_lang_replaces_lang_line
+test_apply_lang_replaces_inject_before
+test_apply_lang_adds_comment_leading_if_missing
+test_apply_lang_replaces_existing_comment_leading
+test_apply_lang_preserves_other_lines
+test_apply_lang_no_duplicate_comment_leading_on_reswitch
 
 finish

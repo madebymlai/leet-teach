@@ -268,17 +268,22 @@ configure_leetcode_cli() {
         read -rp "Language [python]: " chosen
         chosen="${chosen:-python}"
     fi
-    lang_info "$chosen" || die "unsupported language: $chosen. Supported: $SUPPORTED_LANGS"
+    local rec lc_lang lc_inject lc_comment
+    rec=$(lang_info "$chosen") || die "unsupported language: $chosen. Supported: $SUPPORTED_LANGS"
+    IFS=$'\t' read -r lc_lang lc_inject lc_comment <<< "$rec"
 
-    cat > "$toml" << LEETCODECONFIG
+    # Render the fresh file with placeholder lang fields, then let apply_lang_to_toml
+    # fill them in — so the [code]-block quoting lives in one place (leet-toml.sh) and
+    # a fresh setup file stays byte-consistent with what `leet lang` later produces.
+    local base
+    base=$(cat << LEETCODECONFIG
 # leet-teach-config
 [code]
 editor = '${editor_cmd}'
-lang = '${LC_LANG}'
+lang = ''
 edit_code_marker = true
 comment_problem_desc = true
-comment_leading = "${LC_COMMENT_LEADING}"
-inject_before = ${LC_INJECT_BEFORE}
+inject_before = []
 inject_after = []
 test = true
 
@@ -293,6 +298,8 @@ code = 'code'
 root = '~/.leetcode'
 scripts = 'scripts'
 LEETCODECONFIG
+)
+    apply_lang_to_toml "$base" "$lc_lang" "$lc_inject" "$lc_comment" > "$toml"
 
     ok "leetcode-cli config written to $toml (lang: $chosen)"
     info "Change language later with: leet lang <name>"
