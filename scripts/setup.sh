@@ -74,7 +74,7 @@ _render_helix_config() {
 [editor]
 line-number = "relative"
 mouse = true
-scroll-off = 5
+scrolloff = 5
 color-modes = true
 
 [editor.cursor-shape]
@@ -95,6 +95,12 @@ mode.insert = "INSERT"
 display-messages = true
 auto-signature-help = true
 display-inlay-hints = true
+
+[keys.normal]
+"C-s" = ":w"
+
+[keys.insert]
+"C-s" = ":w"
 HELIXCONFIG
 }
 
