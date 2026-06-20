@@ -51,6 +51,41 @@ parse_problem_id() {
     printf '%s\n' "${BASH_REMATCH[1]}"
 }
 
+# pick_args <slug|id> — arguments for `leetcode pick`, one per line.
+# A numeric arg is a problem id (passed bare); anything else is a slug (needs -n).
+pick_args() {
+    local arg="$1"
+    if [[ $arg =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$arg"
+    else
+        printf '%s\n%s\n' "-n" "$arg"
+    fi
+}
+
+# --- edit-pane planners (pure: observed pane state → ordered steps) ---
+
+# plan_edit <alive:yes|no> <cur_cmd> <id> — steps to make the helix pane show <id>.
+plan_edit() {
+    local alive="$1" cur_cmd="$2" id="$3"
+    if [ "$alive" != yes ]; then
+        printf 'create %s\n' "$id"
+        return
+    fi
+    case "$cur_cmd" in
+        hx|helix) printf 'quit-editor\n' ;;
+        *)        printf 'interrupt\n' ;;
+    esac
+    printf 'edit %s\n' "$id"
+}
+
+# plan_close <alive:yes|no> <has_stored:yes|no> — teardown steps for the helix pane.
+# A dead-but-stored pane id is still unset (cleared), but not killed.
+plan_close() {
+    local alive="$1" has_stored="$2"
+    if [ "$alive" = yes ]; then printf 'kill\n'; fi
+    if [ "$has_stored" = yes ]; then printf 'unset\n'; fi
+}
+
 # --- tmux queries ---
 
 check_tmux() {
@@ -60,6 +95,11 @@ check_tmux() {
 
 require_leetcode() {
     command -v leetcode >/dev/null || die "leetcode-cli not found. Run scripts/setup.sh first."
+}
+
+# leet_pick_output <pick-args...> — run `leetcode pick`, capture stdout+stderr (stub point).
+leet_pick_output() {
+    leetcode pick "$@" 2>&1
 }
 
 current_session() {
@@ -77,6 +117,10 @@ pane_alive() {
     [ -n "$pane_id" ] && tmux list-panes -t "$session" -F '#{pane_id}' 2>/dev/null | grep -qx "$pane_id"
 }
 
+pane_command() {
+    tmux display-message -p -t "$1" '#{pane_current_command}'
+}
+
 check_cookies() {
     local toml="$HOME/.leetcode/leetcode.toml"
     [ -f "$toml" ] || die "leetcode.toml not found at $toml. Run scripts/setup.sh first."
@@ -85,57 +129,78 @@ check_cookies() {
 
 # --- commands ---
 
+# apply_step <session> <pane_id> <step> [arg] — execute one planner step.
+# The only place that knows the literal tmux invocations (the "how").
+apply_step() {
+    local session="$1" pane_id="$2" step="$3" arg="${4:-}"
+    case "$step" in
+        create)
+            local new_id
+            new_id=$(tmux split-window -h -P -F '#{pane_id}' "bash -c 'leetcode edit $arg; exec bash'")
+            tmux set-option -t "$session" "$LEET_PANE_OPTION" "$new_id"
+            ;;
+        quit-editor)
+            tmux send-keys -t "$pane_id" Escape ':q!' Enter
+            sleep 0.3
+            ;;
+        interrupt)
+            tmux send-keys -t "$pane_id" C-c
+            sleep 0.2
+            ;;
+        edit)
+            tmux send-keys -t "$pane_id" "leetcode edit $arg" Enter
+            ;;
+        kill)
+            tmux kill-pane -t "$pane_id"
+            ;;
+        unset)
+            tmux set-option -t "$session" -u "$LEET_PANE_OPTION"
+            ;;
+    esac
+}
+
 pane_edit() {
-    local id="$1" session pane_id
+    local id="$1" session pane_id alive cur_cmd stepname steparg
     check_tmux
     require_leetcode
     session=$(current_session)
     pane_id=$(stored_pane_id "$session")
     if pane_alive "$session" "$pane_id"; then
-        local cur_cmd
-        cur_cmd=$(tmux display-message -p -t "$pane_id" '#{pane_current_command}')
-        case "$cur_cmd" in
-            hx|helix)
-                tmux send-keys -t "$pane_id" Escape ':q!' Enter
-                sleep 0.3
-                ;;
-            *)
-                tmux send-keys -t "$pane_id" C-c
-                sleep 0.2
-                ;;
-        esac
-        tmux send-keys -t "$pane_id" "leetcode edit $id" Enter
+        alive=yes
+        cur_cmd=$(pane_command "$pane_id")
     else
-        pane_id=$(tmux split-window -h -P -F '#{pane_id}' "bash -c 'leetcode edit $id; exec bash'")
-        tmux set-option -t "$session" "$LEET_PANE_OPTION" "$pane_id"
+        alive=no
+        cur_cmd=""
     fi
+    while IFS=' ' read -r stepname steparg; do
+        [ -n "$stepname" ] || continue
+        apply_step "$session" "$pane_id" "$stepname" "$steparg"
+    done < <(plan_edit "$alive" "$cur_cmd" "$id")
 }
 
 close_pane() {
     check_tmux
-    local session pane_id
+    local session pane_id alive has_stored stepname steparg
     session=$(current_session)
     pane_id=$(stored_pane_id "$session")
-    if pane_alive "$session" "$pane_id"; then
-        tmux kill-pane -t "$pane_id"
+    if pane_alive "$session" "$pane_id"; then alive=yes; else alive=no; fi
+    if [ -n "$pane_id" ]; then has_stored=yes; else has_stored=no; fi
+    if [ "$alive" = yes ]; then
         echo "Closed leet-edit pane"
     else
         echo "No leet-edit pane found"
     fi
-    if [ -n "$pane_id" ]; then
-        tmux set-option -t "$session" -u "$LEET_PANE_OPTION"
-    fi
+    while IFS=' ' read -r stepname steparg; do
+        [ -n "$stepname" ] || continue
+        apply_step "$session" "$pane_id" "$stepname" "$steparg"
+    done < <(plan_close "$alive" "$has_stored")
 }
 
 do_pick() {
-    local arg="$1" output id pick_args=()
+    local arg="$1" output id args
     require_leetcode
-    if [[ $arg =~ ^[0-9]+$ ]]; then
-        pick_args=("$arg")
-    else
-        pick_args=(-n "$arg")
-    fi
-    output=$(leetcode pick "${pick_args[@]}" 2>&1) || { echo "$output" >&2; die "leetcode pick failed"; }
+    mapfile -t args < <(pick_args "$arg")
+    output=$(leet_pick_output "${args[@]}") || { echo "$output" >&2; die "leetcode pick failed"; }
     echo "$output"
     id=$(parse_problem_id "$output") || die "could not parse problem ID from leetcode output; use '$PROG edit <id>' manually"
     echo ""
