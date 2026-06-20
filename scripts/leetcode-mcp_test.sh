@@ -45,51 +45,8 @@ assert_fails() {
     fi
 }
 
-# --- extract_toml_value: session ---
-
-test_extract_session_single_quoted() {
-    local content id
-    content=$'[cookies]\nsession = \'abc123secret\''
-    id=$(extract_toml_value "$content" "session")
-    assert_eq "extract session single-quoted" "$id" "abc123secret"
-}
-
-test_extract_session_double_quoted() {
-    local content id
-    content=$'[cookies]\nsession = "abc123secret"'
-    id=$(extract_toml_value "$content" "session")
-    assert_eq "extract session double-quoted" "$id" "abc123secret"
-}
-
-test_extract_session_indented() {
-    local content id
-    content=$'[cookies]\n  session = \'abc123\''
-    id=$(extract_toml_value "$content" "session")
-    assert_eq "extract session indented" "$id" "abc123"
-}
-
-test_extract_session_empty_returns_empty() {
-    local content id
-    content=$'[cookies]\nsession = \'\''
-    id=$(extract_toml_value "$content" "session")
-    assert_eq "extract session empty value" "$id" ""
-}
-
-test_extract_session_missing_key_returns_empty() {
-    local content id
-    content=$'[cookies]\ncsrf = \'abc\''
-    id=$(extract_toml_value "$content" "session")
-    assert_eq "extract session missing key" "$id" ""
-}
-
-# --- extract_toml_value: site ---
-
-test_extract_site_leetcode_com() {
-    local content val
-    content=$'[cookies]\nsite = \'leetcode.com\''
-    val=$(extract_toml_value "$content" "site")
-    assert_eq "extract site leetcode.com" "$val" "leetcode.com"
-}
+# Note: reading values out of leetcode.toml (formerly extract_toml_value) now lives in
+# scripts/leet-toml.sh and is covered by leet-toml_test.sh. This file tests only map_site.
 
 # --- map_site ---
 
@@ -119,12 +76,6 @@ test_map_site_cn_to_cn() {
 
 # --- run ---
 
-test_extract_session_single_quoted
-test_extract_session_double_quoted
-test_extract_session_indented
-test_extract_session_empty_returns_empty
-test_extract_session_missing_key_returns_empty
-test_extract_site_leetcode_com
 test_map_site_leetcode_com_to_global
 test_map_site_empty_to_global
 test_map_site_leetcode_cn_to_cn

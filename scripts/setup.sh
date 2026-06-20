@@ -9,6 +9,8 @@ SKILLS_VERSION="latest"
 PROJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=leet-languages.sh
 source "$PROJ_DIR/scripts/leet-languages.sh"
+# shellcheck source=leet-toml.sh
+source "$PROJ_DIR/scripts/leet-toml.sh"
 
 # TTY-guarded colors
 if [ -t 1 ]; then
@@ -167,28 +169,36 @@ configure_tmux() {
     touch "$TMUX_CONFIG"
 
     if ! grep -q "set -g mouse on" "$TMUX_CONFIG" 2>/dev/null; then
-        echo "" >> "$TMUX_CONFIG"
-        echo "# leet-teach: enable mouse" >> "$TMUX_CONFIG"
-        echo "set -g mouse on" >> "$TMUX_CONFIG"
+        {
+            echo ""
+            echo "# leet-teach: enable mouse"
+            echo "set -g mouse on"
+        } >> "$TMUX_CONFIG"
         ok "tmux mouse enabled"
     else
         info "tmux mouse already enabled"
     fi
 
     if ! grep -q "Alt-Up" "$TMUX_CONFIG" 2>/dev/null; then
-        echo "" >> "$TMUX_CONFIG"
-        echo "# leet-teach: Alt+arrow pane switching" >> "$TMUX_CONFIG"
-        echo 'bind -n M-Up select-pane -U' >> "$TMUX_CONFIG"
-        echo 'bind -n M-Down select-pane -D' >> "$TMUX_CONFIG"
-        echo 'bind -n M-Left select-pane -L' >> "$TMUX_CONFIG"
-        echo 'bind -n M-Right select-pane -R' >> "$TMUX_CONFIG"
+        {
+            echo ""
+            echo "# leet-teach: Alt+arrow pane switching"
+            echo 'bind -n M-Up select-pane -U'
+            echo 'bind -n M-Down select-pane -D'
+            echo 'bind -n M-Left select-pane -L'
+            echo 'bind -n M-Right select-pane -R'
+        } >> "$TMUX_CONFIG"
         ok "Alt+arrow pane switching configured"
     else
         info "Alt+arrow pane switching already configured"
     fi
 
     if [ -n "${TMUX:-}" ]; then
-        tmux source-file "$TMUX_CONFIG" 2>/dev/null && ok "tmux config reloaded" || warn "Could not reload tmux config (applies on next session)"
+        if tmux source-file "$TMUX_CONFIG" 2>/dev/null; then
+            ok "tmux config reloaded"
+        else
+            warn "Could not reload tmux config (applies on next session)"
+        fi
     fi
 }
 
@@ -201,6 +211,7 @@ install_leetcode_cli() {
     if ! check_cmd cargo; then
         info "cargo not found, installing rustup..."
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        # shellcheck source=/dev/null  # created by rustup at runtime
         source "$HOME/.cargo/env"
     fi
     cargo install leetcode-cli
@@ -228,9 +239,11 @@ configure_leetcode_cli() {
     # Preserve existing session/csrf/site from old config (if any)
     local existing_session="" existing_csrf="" existing_site="leetcode.com"
     if [ -f "$LC_DIR/leetcode.toml.bak" ]; then
-        existing_session=$(sed -nE "s/^[[:space:]]*session[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$LC_DIR/leetcode.toml.bak" | head -1)
-        existing_csrf=$(sed -nE "s/^[[:space:]]*csrf[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$LC_DIR/leetcode.toml.bak" | head -1)
-        existing_site=$(sed -nE "s/^[[:space:]]*site[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$LC_DIR/leetcode.toml.bak" | head -1)
+        local bak_content
+        bak_content=$(cat "$LC_DIR/leetcode.toml.bak")
+        existing_session=$(toml_get "$bak_content" session)
+        existing_csrf=$(toml_get "$bak_content" csrf)
+        existing_site=$(toml_get "$bak_content" site)
     fi
 
     local editor_cmd
@@ -308,9 +321,10 @@ install_mcp_launcher() {
     info "Installing leetcode-mcp launcher..."
     mkdir -p "$HOME/.local/bin"
     local launcher_dst="$HOME/.local/bin/leetcode-mcp"
-    cp "$PROJ_DIR/scripts/leetcode-mcp" "$launcher_dst"
-    chmod +x "$launcher_dst"
-    ok "launcher installed at $launcher_dst"
+    # Symlink (not copy) so the launcher can source scripts/leet-toml.sh at runtime,
+    # mirroring how `leet` is installed.
+    ln -sf "$PROJ_DIR/scripts/leetcode-mcp" "$launcher_dst"
+    ok "launcher symlinked to $launcher_dst"
 }
 
 install_leet() {

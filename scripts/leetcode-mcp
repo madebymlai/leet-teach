@@ -2,13 +2,13 @@
 # leetcode-mcp — launcher that reads the LeetCode session from ~/.leetcode/leetcode.toml
 # (single source of truth) and execs the MCP server. MCP configs point to this script,
 # never to the cookie value directly.
+# Installed as a symlink, so it resolves its real dir to source the shared toml reader.
+
+LEET_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# shellcheck source=leet-toml.sh
+source "$LEET_DIR/leet-toml.sh"
 
 # --- pure helpers (no I/O, testable) ---
-
-extract_toml_value() {
-    local content="$1" key="$2"
-    sed -nE "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" <<< "$content" | head -1
-}
 
 map_site() {
     local site_raw="$1"
@@ -31,14 +31,14 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     }
 
     content=$(cat "$LC_TOML")
-    session=$(extract_toml_value "$content" "session")
+    session=$(toml_get "$content" "session")
 
     [ -n "$session" ] || {
         echo "leetcode-mcp: session cookie not set in $LC_TOML. Run: leetcode data -c" >&2
         exit 1
     }
 
-    site_raw=$(extract_toml_value "$content" "site")
+    site_raw=$(toml_get "$content" "site")
     mcp_site=$(map_site "$site_raw")
 
     export LEETCODE_SESSION="$session"

@@ -4,11 +4,13 @@
 # Helix names match [[language]] entries in helix's languages.toml.
 
 # Space-separated list of supported helix language names (for `select` and iteration)
+# shellcheck disable=SC2034  # consumed by leet/setup.sh after sourcing
 SUPPORTED_LANGS="python rust cpp c java go"
 
 # lang_info <helix_name> — sets LC_LANG, LC_INJECT_BEFORE, LC_COMMENT_LEADING.
 # Returns 1 for unsupported languages.
 lang_info() {
+    # shellcheck disable=SC2034  # out-parameters consumed by callers after sourcing
     LC_LANG="" LC_INJECT_BEFORE="" LC_COMMENT_LEADING=""
     case "$1" in
         python)
@@ -47,10 +49,8 @@ lang_info() {
     esac
 }
 
-# current_lang <toml_content> — extracts the lang value (pure, testable)
-current_lang() {
-    sed -nE "s/^[[:space:]]*lang[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" <<< "$1" | head -1
-}
+# Reading the current lang out of leetcode.toml now lives in scripts/leet-toml.sh:
+# callers use `toml_get "$content" lang`.
 
 # apply_lang_to_toml <content> <lang> <inject_before_toml> <comment_leading>
 # Returns updated TOML content via stdout. Pure, testable.

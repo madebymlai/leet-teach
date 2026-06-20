@@ -6,6 +6,8 @@ set -euo pipefail
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=leet-languages.sh
 source "$TESTS_DIR/leet-languages.sh"
+# shellcheck source=leet-toml.sh
+source "$TESTS_DIR/leet-toml.sh"   # toml_get, used to read back apply_lang results
 
 pass=0
 fail=0
@@ -81,28 +83,7 @@ test_lang_info_unsupported_fails() {
     assert_fails "unsupported language fails" lang_info kotlin
 }
 
-# --- current_lang ---
-
-test_current_lang_extracts_value() {
-    local content val
-    content=$'[code]\nlang = \'python3\''
-    val=$(current_lang "$content")
-    assert_eq "current_lang extracts python3" "$val" "python3"
-}
-
-test_current_lang_extracts_rust() {
-    local content val
-    content=$'[code]\nlang = \'rust\''
-    val=$(current_lang "$content")
-    assert_eq "current_lang extracts rust" "$val" "rust"
-}
-
-test_current_lang_missing_returns_empty() {
-    local content val
-    content=$'[code]\neditor = \'hx\''
-    val=$(current_lang "$content")
-    assert_eq "current_lang missing key" "$val" ""
-}
+# Note: current_lang moved to scripts/leet-toml.sh as toml_get; see leet-toml_test.sh.
 
 # --- apply_lang_to_toml ---
 
@@ -110,7 +91,7 @@ test_apply_lang_replaces_lang_line() {
     local content updated
     content=$'[code]\nlang = \'python3\'\neditor = \'hx\''
     updated=$(apply_lang_to_toml "$content" "rust" "[]" "//")
-    assert_eq "apply_lang replaces lang" "$(current_lang "$updated")" "rust"
+    assert_eq "apply_lang replaces lang" "$(toml_get "$updated" lang)" "rust"
 }
 
 test_apply_lang_replaces_inject_before() {
@@ -158,9 +139,6 @@ test_lang_info_rust_has_empty_inject
 test_lang_info_cpp_has_stl_includes
 test_lang_info_go_has_empty_inject
 test_lang_info_unsupported_fails
-test_current_lang_extracts_value
-test_current_lang_extracts_rust
-test_current_lang_missing_returns_empty
 test_apply_lang_replaces_lang_line
 test_apply_lang_replaces_inject_before
 test_apply_lang_adds_comment_leading_if_missing

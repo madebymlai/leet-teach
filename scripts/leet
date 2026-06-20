@@ -8,6 +8,8 @@ LEET_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 # shellcheck source=leet-languages.sh
 source "$LEET_DIR/leet-languages.sh"
+# shellcheck source=leet-toml.sh
+source "$LEET_DIR/leet-toml.sh"
 
 usage() {
     cat <<EOF
@@ -49,11 +51,6 @@ parse_problem_id() {
     printf '%s\n' "${BASH_REMATCH[1]}"
 }
 
-session_is_set() {
-    local content="$1"
-    grep -qE "^[[:space:]]*session *= *['\"][^'\"]+['\"]" <<< "$content"
-}
-
 # --- tmux queries ---
 
 check_tmux() {
@@ -83,7 +80,7 @@ pane_alive() {
 check_cookies() {
     local toml="$HOME/.leetcode/leetcode.toml"
     [ -f "$toml" ] || die "leetcode.toml not found at $toml. Run scripts/setup.sh first."
-    session_is_set "$(cat "$toml")" || die "LeetCode session cookie not set. Run: leetcode data -c"
+    toml_has "$(cat "$toml")" session || die "LeetCode session cookie not set. Run: leetcode data -c"
 }
 
 # --- commands ---
@@ -166,7 +163,7 @@ do_lang() {
     toml="$HOME/.leetcode/leetcode.toml"
     [ -f "$toml" ] || die "leetcode.toml not found. Run scripts/setup.sh first."
     content=$(cat "$toml")
-    current=$(current_lang "$content")
+    current=$(toml_get "$content" lang)
 
     if [ -z "$chosen" ]; then
         echo "Current language: ${current:-not set}"

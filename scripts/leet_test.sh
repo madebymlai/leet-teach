@@ -61,47 +61,13 @@ test_parse_problem_id_fails_without_bracketed_id() {
     assert_fails "parse_problem_id fails without [N]" parse_problem_id "$output"
 }
 
-# --- session_is_set ---
-
-test_session_is_set_accepts_nonempty_session() {
-    local content
-    content=$'[cookies]\nsession = \'abc123secret\''
-    assert_succeeds "session_is_set accepts nonempty session" session_is_set "$content"
-}
-
-test_session_is_set_rejects_empty_session() {
-    local content
-    content=$'[cookies]\nsession = \'\''
-    assert_fails "session_is_set rejects empty session" session_is_set "$content"
-}
-
-test_session_is_set_rejects_missing_session_key() {
-    local content
-    content=$'[cookies]\ncsrf = \'abc\''
-    assert_fails "session_is_set rejects missing session key" session_is_set "$content"
-}
-
-test_session_is_set_accepts_double_quoted_session() {
-    local content
-    content=$'[cookies]\nsession = "abc123secret"'
-    assert_succeeds "session_is_set accepts double-quoted session" session_is_set "$content"
-}
-
-test_session_is_set_accepts_indented_session_key() {
-    local content
-    content=$'[cookies]\n  session = \'abc\''
-    assert_succeeds "session_is_set accepts indented session key" session_is_set "$content"
-}
+# Note: the session-cookie presence check (formerly session_is_set) now lives in
+# scripts/leet-toml.sh as toml_has and is covered by leet-toml_test.sh.
 
 # --- run ---
 
 test_parse_problem_id_extracts_first_bracketed_id
 test_parse_problem_id_fails_without_bracketed_id
-test_session_is_set_accepts_nonempty_session
-test_session_is_set_rejects_empty_session
-test_session_is_set_rejects_missing_session_key
-test_session_is_set_accepts_double_quoted_session
-test_session_is_set_accepts_indented_session_key
 
 echo ""
 echo "Results: $pass passed, $fail failed"

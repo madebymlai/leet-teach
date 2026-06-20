@@ -2,6 +2,7 @@
 
 ## Domain Language
 
+- **leet-toml** — `scripts/leet-toml.sh`, the single reader for `~/.leetcode/leetcode.toml` (the single source of truth). Exposes `toml_get <content> <key>` (first quoted value, or empty) and `toml_has <content> <key>` (present and non-empty). Every script sources it instead of hand-rolling a sed/grep regex.
 - **leetcode-cli** — The clearloop Rust CLI tool (`cargo install leetcode-cli`), not the stale skygragon Node.js one
 - **leetcode-mcp-server** — The jinzcdev MCP server (`@jinzcdev/leetcode-mcp-server`), gives AI tools direct LeetCode API access
 - **helix** — Terminal modal editor (`hx` command), configured as default editor for leetcode-cli
