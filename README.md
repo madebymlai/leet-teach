@@ -136,11 +136,10 @@ editor = 'hx'  # or vim, nvim, code, etc.
 ```
 
 ### LeetCode China
-Change site in both leetcode.toml and MCP configs:
+`leet sync` auto-detects the site from the cookie's host. To force it, set `site` in
+`~/.leetcode/leetcode.toml` — the MCP launcher derives `LEETCODE_SITE` from there, so
+there's nothing to change in the MCP configs:
 ```toml
 [cookies]
 site = 'leetcode.cn'
-```
-```json
-"LEETCODE_SITE": "cn"
 ```

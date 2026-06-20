@@ -60,9 +60,11 @@ editor = 'helix'
 
 ## Auth setup
 
-LeetCode session cookie is needed for both leetcode-cli and MCP:
+The LeetCode session lives once in `~/.leetcode/leetcode.toml` and is read by both
+leetcode-cli and the MCP server. Log into leetcode.com in your browser, then:
 ```bash
-leetcode data -c    # interactive cookie setup for leetcode-cli
+leet sync    # pull the live session + csrf from any Firefox-family browser
 ```
-
-For MCP, set `LEETCODE_SESSION` in the MCP config JSON files.
+`leet test`/`leet submit` auto-re-sync and retry once when the session goes stale, and
+the MCP launcher refreshes the cookie on startup. No need to set `LEETCODE_SESSION` in
+any MCP config JSON.

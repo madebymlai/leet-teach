@@ -43,7 +43,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     session=$(toml_get "$content" "session")
 
     [ -n "$session" ] || {
-        echo "leetcode-mcp: session cookie not set in $LC_TOML. Run: leetcode data -c" >&2
+        echo "leetcode-mcp: session cookie not set in $LC_TOML. Log into leetcode.com in your browser, then run: leet sync" >&2
         exit 1
     }
 
