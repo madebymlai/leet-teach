@@ -11,14 +11,14 @@ chmod +x scripts/setup.sh
 ```
 
 This installs and configures:
-- **helix** — modal editor with LSP support
-- **leetcode-cli** (clearloop) — problem scaffolding, testing, submission
-- **leetcode-mcp-server** — AI tools for Claude/Codex/OpenCode (project-local)
-- **teach skill** — mattpocock's teaching framework (project-local)
-- **leetcode skill** — custom DSA coaching skill
+- **helix**: modal editor with LSP support
+- **leetcode-cli** (clearloop): problem scaffolding, testing, submission
+- **leetcode-mcp-server**: AI tools for Claude/Codex/OpenCode (project-local)
+- **teach skill**: mattpocock's teaching framework (project-local)
+- **leetcode skill**: custom DSA coaching skill
 
 > **MCP is configured project-local.** `setup.sh` writes `.mcp.json`, `opencode.json`,
-> and `.codex/config.toml` *inside this folder* — the leetcode MCP server is only active
+> and `.codex/config.toml` *inside this folder*, so the leetcode MCP server is only active
 > for assistants launched from here, never registered globally. Run `claude` / `opencode` /
 > `codex` from the project root (and trust the folder when Codex prompts). These generated
 > files are git-ignored; `mcp-configs/` holds committed shape references.
@@ -30,14 +30,14 @@ This installs and configures:
    leet sync
    ```
    `leet sync` reads the live `LEETCODE_SESSION` + `csrftoken` straight out of any
-   Firefox-family browser (Firefox, LibreWolf, Floorp, Zen, Waterfox, Mullvad, …) —
+   Firefox-family browser (Firefox, LibreWolf, Floorp, Zen, Waterfox, Mullvad, …).
    Firefox stores cookies unencrypted, so no `browser_cookie3`/Chrome-decryption hassle.
    It scans every profile and picks whichever holds a live LeetCode session.
 
    The cookie lands in `~/.leetcode/leetcode.toml` (the single source of truth); both
-   `leetcode-cli` and the MCP server read from there — no need to edit MCP configs.
+   `leetcode-cli` and the MCP server read from there, so no need to edit MCP configs.
 
-   > **Persistent login, honestly.** A LeetCode session can't be made immortal — it
+   > **Persistent login, honestly.** A LeetCode session can't be made immortal; it
    > goes *stale* every couple of weeks. But as long as you stay logged in in your
    > browser, you never deal with it: `leet test`/`leet submit` detect a stale-cookie
    > rejection and **auto re-sync from the browser and retry**, and the MCP launcher
@@ -76,11 +76,11 @@ Supported languages: `python`, `rust`, `cpp`, `c`, `java`, `go`. The language is
 ### teach (mattpocock)
 
 Project-local teaching framework. Creates:
-- `MISSION.md` — your learning goals
-- `learning-records/` — tracked insights
-- `lessons/` — interactive HTML lessons
-- `reference/` — cheat sheets and glossaries
-- `RESOURCES.md` — curated learning sources
+- `MISSION.md`: your learning goals
+- `learning-records/`: tracked insights
+- `lessons/`: interactive HTML lessons
+- `reference/`: cheat sheets and glossaries
+- `RESOURCES.md`: curated learning sources
 
 ### leetcode (custom)
 
@@ -137,7 +137,7 @@ editor = 'hx'  # or vim, nvim, code, etc.
 
 ### LeetCode China
 `leet sync` auto-detects the site from the cookie's host. To force it, set `site` in
-`~/.leetcode/leetcode.toml` — the MCP launcher derives `LEETCODE_SITE` from there, so
+`~/.leetcode/leetcode.toml`, and the MCP launcher derives `LEETCODE_SITE` from there, so
 there's nothing to change in the MCP configs:
 ```toml
 [cookies]
