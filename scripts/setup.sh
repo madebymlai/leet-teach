@@ -394,6 +394,36 @@ setup_project() {
     ok "Project directories created"
 }
 
+# SETUP_STEPS — the ordered registry of setup steps: one "label:function" entry each,
+# in run order. Single source of truth (no parallel array + case to drift out of sync).
+SETUP_STEPS=(
+    "helix:install_helix"
+    "helix-config:configure_helix"
+    "tmux-config:configure_tmux"
+    "leetcode-cli:install_leetcode_cli"
+    "leetcode-config:configure_leetcode_cli"
+    "mcp-install:install_mcp_server"
+    "mcp-launcher:install_mcp_launcher"
+    "leet:install_leet"
+    "mcp-config:configure_mcp"
+    "skills:install_skills"
+    "project:setup_project"
+)
+
+# run_steps <out_array> <entry...> — run each "label:fn" entry in order. Dispatches
+# the function by name; appends the label of any failed step to <out_array> (nameref).
+run_steps() {
+    local -n __out=$1; shift
+    local entry label fn
+    for entry in "$@"; do
+        label=${entry%%:*}
+        fn=${entry#*:}
+        echo ""
+        info "=== Step: $label ==="
+        "$fn" || __out+=("$label")
+    done
+}
+
 main() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════╗"
@@ -402,26 +432,8 @@ main() {
     echo "╚══════════════════════════════════════════╝"
     echo -e "${NC}"
 
-    local steps=("helix" "helix-config" "tmux-config" "leetcode-cli" "leetcode-config" "mcp-install" "mcp-launcher" "leet" "mcp-config" "skills" "project")
     local failed=()
-
-    for step in "${steps[@]}"; do
-        echo ""
-        info "=== Step: $step ==="
-        case "$step" in
-            helix)           install_helix || failed+=("$step") ;;
-            helix-config)    configure_helix || failed+=("$step") ;;
-            tmux-config)     configure_tmux || failed+=("$step") ;;
-            leetcode-cli)    install_leetcode_cli || failed+=("$step") ;;
-            leetcode-config) configure_leetcode_cli || failed+=("$step") ;;
-            mcp-install)     install_mcp_server || failed+=("$step") ;;
-            mcp-launcher)    install_mcp_launcher || failed+=("$step") ;;
-            leet)            install_leet || failed+=("$step") ;;
-            mcp-config)      configure_mcp || failed+=("$step") ;;
-            skills)          install_skills || failed+=("$step") ;;
-            project)         setup_project || failed+=("$step") ;;
-        esac
-    done
+    run_steps failed "${SETUP_STEPS[@]}"
 
     echo ""
     echo -e "${CYAN}════════════════════════════════════════════${NC}"
@@ -444,4 +456,7 @@ main() {
     echo -e "${YELLOW}Or let your AI coach handle it via MCP tools.${NC}"
 }
 
-main "$@"
+# Run only when executed, not when sourced (for tests).
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
