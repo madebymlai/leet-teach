@@ -39,7 +39,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Opt out with LEET_MCP_NO_SYNC=1.
     [ "${LEET_MCP_NO_SYNC:-}" = 1 ] || cookies_sync "$LC_TOML" || true
 
-    content=$(cat "$LC_TOML")
+    content=$(toml_load "$LC_TOML")
     session=$(toml_get "$content" "session")
 
     [ -n "$session" ] || {

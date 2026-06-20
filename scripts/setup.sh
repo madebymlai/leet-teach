@@ -299,7 +299,7 @@ root = '~/.leetcode'
 scripts = 'scripts'
 LEETCODECONFIG
 )
-    apply_lang_to_toml "$base" "$lc_lang" "$lc_inject" "$lc_comment" > "$toml"
+    toml_store "$toml" "$(apply_lang_to_toml "$base" "$lc_lang" "$lc_inject" "$lc_comment")"
 
     ok "leetcode-cli config written to $toml (lang: $chosen)"
     info "Change language later with: leet lang <name>"

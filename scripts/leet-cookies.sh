@@ -173,12 +173,10 @@ cookies_sync() {
         return 1
     }
 
-    local content updated
-    content=$(cat "$toml")
-    updated=$(toml_set "$content" session "$session")
-    [ -n "$csrf" ] && updated=$(toml_set "$updated" csrf "$csrf")
-    [ -n "$site" ] && updated=$(toml_set "$updated" site "$site")
-    printf '%s\n' "$updated" > "$toml"
+    # One atomic read-modify-write through the leet-toml seam. session is non-empty
+    # (checked above); toml_set_keys skips empty csrf/site so a missing token never
+    # clobbers the stored one.
+    toml_set_keys "$toml" session "$session" csrf "$csrf" site "$site"
 
     echo "leet sync: session updated (${#session} chars)${csrf:+, csrf updated}, site=$site" >&2
 }

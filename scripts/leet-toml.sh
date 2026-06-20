@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# leet-toml.sh — the single reader for ~/.leetcode/leetcode.toml (the single source of truth).
-# Sourced by scripts/leet, scripts/leetcode-mcp, and scripts/setup.sh.
-# Pure helpers, no I/O — callers cat the file and pass the content in.
+# leet-toml.sh — the single reader AND writer for ~/.leetcode/leetcode.toml (the single
+# source of truth). Sourced by scripts/leet, scripts/leetcode-mcp, and scripts/setup.sh.
+# Two layers: pure string helpers (toml_get/has/set, apply_lang_to_toml) that take content
+# and hand it back, and the on-disk I/O seam (toml_load/store/set_keys) that owns reading,
+# atomic writing, and the read-modify-write — so no caller hand-rolls a cat/printf dance.
 # This module owns the on-disk format (quoting, indentation) so nothing else hand-rolls a regex.
 
 # toml_path — canonical path to the leetcode.toml, overridable via $LEETCODE_TOML.
@@ -52,4 +54,43 @@ apply_lang_to_toml() {
         }
         { print }
     '
+}
+
+# --- on-disk I/O (the deep read/write seam: callers no longer cat/printf by hand) ---
+
+# toml_load <path> — print the file content. Returns non-zero (no output) when the
+# file is missing, leaving the user-facing "run setup first" message to the caller.
+toml_load() {
+    [ -f "$1" ] || return 1
+    cat "$1"
+}
+
+# toml_store <path> <content> — write <content> plus one trailing newline to <path>
+# atomically: render into a temp file in the same directory, then mv it over the
+# target. A crash mid-write can't truncate the single source of truth (which holds
+# the only copy of the session cookie). Same-dir temp keeps the mv on one filesystem.
+toml_store() {
+    local path="$1" content="$2" tmp
+    tmp=$(mktemp "$path.XXXXXX") || return 1
+    if printf '%s\n' "$content" > "$tmp" && mv -f "$tmp" "$path"; then
+        return 0
+    fi
+    rm -f "$tmp"
+    return 1
+}
+
+# toml_set_keys <path> <key> <value> ... — read-modify-write each key/value pair
+# into <path> in one atomic store. Pairs with an empty value are skipped, so a
+# missing cookie never clobbers the stored one ("don't clobber" lives here, not in
+# every caller). Absent keys are left unchanged (toml_set semantics).
+toml_set_keys() {
+    local path="$1"; shift
+    local content key value
+    content=$(toml_load "$path") || return 1
+    while [ "$#" -ge 2 ]; do
+        key="$1"; value="$2"; shift 2
+        [ -n "$value" ] || continue
+        content=$(toml_set "$content" "$key" "$value")
+    done
+    toml_store "$path" "$content"
 }

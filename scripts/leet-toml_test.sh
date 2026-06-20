@@ -198,6 +198,73 @@ test_apply_lang_no_duplicate_comment_leading_on_reswitch() {
     assert_eq "no duplicate comment_leading on re-switch" "$count" "1"
 }
 
+# --- toml_store (atomic write to disk) ---
+
+test_toml_store_round_trips_with_trailing_newline() {
+    local tmp content; tmp=$(mktemp)
+    content=$'[code]\nlang = \'rust\''
+    toml_store "$tmp" "$content"
+    assert_succeeds "toml_store writes content with a single trailing newline" \
+        diff <(printf '%s\n' "$content") "$tmp"
+    rm -f "$tmp"
+}
+
+test_toml_store_leaves_no_temp_file_behind() {
+    local dir strays; dir=$(mktemp -d)
+    toml_store "$dir/leetcode.toml" $'[code]\nlang = \'c\''
+    strays=$(find "$dir" -name 'leetcode.toml.*' | wc -l)
+    assert_eq "toml_store cleans up its temp sibling (atomic rename)" "$strays" "0"
+    rm -rf "$dir"
+}
+
+# --- toml_load (read from disk) ---
+
+test_toml_load_returns_file_content() {
+    local tmp out; tmp=$(mktemp)
+    printf '%s\n' $'[code]\nlang = \'go\'' > "$tmp"
+    out=$(toml_load "$tmp")
+    assert_eq "toml_load returns the file content" "$out" $'[code]\nlang = \'go\''
+    rm -f "$tmp"
+}
+
+test_toml_load_fails_on_missing_file() {
+    local dir; dir=$(mktemp -d)
+    assert_fails "toml_load fails on a missing file" toml_load "$dir/nope.toml"
+    rm -rf "$dir"
+}
+
+# --- toml_set_keys (read-modify-write multiple keys atomically) ---
+
+test_toml_set_keys_sets_a_single_key_through_disk() {
+    local tmp; tmp=$(mktemp)
+    printf '%s\n' $'[cookies]\nsession = \'OLD\'' > "$tmp"
+    toml_set_keys "$tmp" session NEWVAL
+    assert_eq "toml_set_keys writes one key back to disk" \
+        "$(toml_get "$(cat "$tmp")" session)" "NEWVAL"
+    rm -f "$tmp"
+}
+
+test_toml_set_keys_sets_multiple_keys_in_one_call() {
+    local tmp content; tmp=$(mktemp)
+    printf '%s\n' $'[cookies]\nsession = \'OLDS\'\ncsrf = \'OLDC\'\nsite = \'leetcode.com\'' > "$tmp"
+    toml_set_keys "$tmp" session NEWS csrf NEWC site leetcode.cn
+    content=$(cat "$tmp")
+    assert_eq "toml_set_keys sets session" "$(toml_get "$content" session)" "NEWS"
+    assert_eq "toml_set_keys sets csrf" "$(toml_get "$content" csrf)" "NEWC"
+    assert_eq "toml_set_keys sets site" "$(toml_get "$content" site)" "leetcode.cn"
+    rm -f "$tmp"
+}
+
+test_toml_set_keys_skips_empty_values() {
+    local tmp content; tmp=$(mktemp)
+    printf '%s\n' $'[cookies]\nsession = \'OLDS\'\ncsrf = \'KEEPC\'' > "$tmp"
+    toml_set_keys "$tmp" session NEWS csrf ""
+    content=$(cat "$tmp")
+    assert_eq "toml_set_keys refreshes session" "$(toml_get "$content" session)" "NEWS"
+    assert_eq "toml_set_keys skips empty value (no clobber)" "$(toml_get "$content" csrf)" "KEEPC"
+    rm -f "$tmp"
+}
+
 # --- run ---
 
 test_toml_get_extracts_single_quoted_value
@@ -226,5 +293,12 @@ test_apply_lang_adds_comment_leading_if_missing
 test_apply_lang_replaces_existing_comment_leading
 test_apply_lang_preserves_other_lines
 test_apply_lang_no_duplicate_comment_leading_on_reswitch
+test_toml_store_round_trips_with_trailing_newline
+test_toml_store_leaves_no_temp_file_behind
+test_toml_load_returns_file_content
+test_toml_load_fails_on_missing_file
+test_toml_set_keys_sets_a_single_key_through_disk
+test_toml_set_keys_sets_multiple_keys_in_one_call
+test_toml_set_keys_skips_empty_values
 
 finish

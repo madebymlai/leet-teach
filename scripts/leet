@@ -128,7 +128,7 @@ pane_command() {
 check_cookies() {
     local toml; toml=$(toml_path)
     [ -f "$toml" ] || die "leetcode.toml not found at $toml. Run scripts/setup.sh first."
-    if ! toml_has "$(cat "$toml")" session; then
+    if ! toml_has "$(toml_load "$toml")" session; then
         # Empty (not stale) is rare — try one browser sync before giving up.
         echo "$PROG: no session cookie set, syncing from your browser..." >&2
         cookies_sync "$toml" \
@@ -267,8 +267,7 @@ do_lang() {
     local chosen="${1:-}" helix_name toml content current
     require_leetcode
     toml=$(toml_path)
-    [ -f "$toml" ] || die "leetcode.toml not found. Run scripts/setup.sh first."
-    content=$(cat "$toml")
+    content=$(toml_load "$toml") || die "leetcode.toml not found. Run scripts/setup.sh first."
     current=$(toml_get "$content" lang)
 
     if [ -z "$chosen" ]; then
@@ -288,7 +287,7 @@ do_lang() {
     local updated
     updated=$(plan_lang_change "$content" "$helix_name") \
         || die "unsupported language: $helix_name. Supported: $SUPPORTED_LANGS"
-    printf '%s\n' "$updated" > "$toml"
+    toml_store "$toml" "$updated"
     echo "Language set to $helix_name (leetcode: $(toml_get "$updated" lang), comment: $(toml_get "$updated" comment_leading))"
 }
 
