@@ -168,7 +168,9 @@ apply_step() {
             tmux set-option -t "$session" "$LEET_PANE_OPTION" "$new_id"
             ;;
         quit-editor)
-            tmux send-keys -t "$pane_id" Escape ':q!' Enter
+            tmux send-keys -t "$pane_id" Escape
+            sleep 0.2
+            tmux send-keys -t "$pane_id" ':q!' Enter
             sleep 0.3
             ;;
         interrupt)
