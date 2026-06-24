@@ -76,8 +76,8 @@ plan_edit() {
         return
     fi
     case "$cur_cmd" in
-        hx|helix) printf 'quit-editor\n' ;;
-        *)        printf 'interrupt\n' ;;
+        hx|helix|leetcode) printf 'quit-editor\n' ;;
+        *)                 printf 'interrupt\n' ;;
     esac
     printf 'edit %s\n' "$id"
 }

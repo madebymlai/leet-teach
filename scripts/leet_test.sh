@@ -56,6 +56,12 @@ test_plan_edit_live_helix_quits_then_edits() {
     assert_eq "plan_edit live helix → quit-editor then edit" "$out" $'quit-editor\nedit 1'
 }
 
+test_plan_edit_live_leetcode_quits_then_edits() {
+    local out
+    out=$(plan_edit yes leetcode 1)
+    assert_eq "plan_edit live leetcode (helix child) → quit-editor then edit" "$out" $'quit-editor\nedit 1'
+}
+
 test_plan_edit_live_other_interrupts_then_edits() {
     local out
     out=$(plan_edit yes bash 1)
@@ -192,6 +198,7 @@ test_pick_args_numeric_passes_bare_id
 test_pick_args_slug_uses_dash_n
 test_plan_edit_no_live_pane_creates
 test_plan_edit_live_helix_quits_then_edits
+test_plan_edit_live_leetcode_quits_then_edits
 test_plan_edit_live_other_interrupts_then_edits
 test_plan_close_live_pane_kills_then_unsets
 test_plan_close_dead_but_stored_only_unsets
