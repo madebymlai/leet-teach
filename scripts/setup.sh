@@ -296,7 +296,7 @@ configure_leetcode_cli() {
 [code]
 editor = '${editor_cmd}'
 lang = ''
-edit_code_marker = true
+edit_code_marker = false
 comment_problem_desc = true
 inject_before = []
 inject_after = []
