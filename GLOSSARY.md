@@ -43,6 +43,10 @@ _Avoid_: memorisation
 A reusable solution template that many problems reduce to. In this workspace "pattern" always means this, never an object-oriented design pattern.
 _Avoid_: trick, formula
 
+**Complement**:
+For a given element x and a target relation, the other value that would satisfy the relation with x. In Two Sum the complement of x is `target - x`. Naming the complement is the move that turns a nested-loop search into a single hash-map lookup.
+_Avoid_: partner, matching value
+
 **Pattern recognition**:
 Matching an unseen problem to a known pattern. The core interview skill.
 

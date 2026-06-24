@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 01 - dict &amp; enumerate</title>
+<link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+
+<header>
+  <div class="kicker">Lesson 01 · Python syntax</div>
+  <h1><code>dict</code> &amp; <code>enumerate</code></h1>
+</header>
+
+<p>Two tools you reached for while solving two-sum. This lesson fixes them in memory so next time you write them without checking.</p>
+
+<h2>The dict - Python's hash map</h2>
+
+<p>A <dfn>dict</dfn> is a mutable mapping from <em>keys</em> to <em>values</em>. Average <code>O(1)</code> insert, lookup, and delete. It is the data structure behind the <a href="../0001-hash-map-lookup-pattern.html">hash-map lookup pattern</a>.</p>
+
+<pre><code>seen = {}          # 1. create - empty dict literal
+
+seen[x] = i        # 2. insert / overwrite - key x, value i
+
+val = seen[x]      # 3. lookup by key - raises KeyError if x not present
+
+x in seen          # 4. membership - True/False, O(1), never raises</code></pre>
+
+<div class="callout">
+  <div class="label">The four moves, in the order the pattern uses them</div>
+  <p>Create once outside the loop. Inside the loop: <strong>check membership</strong> (<code>complement in seen</code>), then <strong>lookup</strong> (<code>seen[complement]</code>) only if it is present, then <strong>insert</strong> (<code>seen[x] = i</code>) after checking. Lookup before insert, always - so an element never matches itself.</p>
+</div>
+
+<h3>The safe lookup: <code>.get</code></h3>
+
+<p>Bare <code>seen[key]</code> raises <code>KeyError</code> if the key is missing. <code>seen.get(key)</code> returns <code>None</code> instead, or a default you choose:</p>
+
+<pre><code>val = seen.get(key)         # None if missing
+val = seen.get(key, -1)     # -1 if missing</code></pre>
+
+<p>Use <code>in</code> when you only need the yes/no. Use <code>.get</code> when you need the value <em>and</em> want to handle absence without a branch.</p>
+
+<h2><code>enumerate</code> - index and value in one pass</h2>
+
+<p>A built-in that yields <code>(index, value)</code> pairs as you iterate. It replaces the <code>range(len(nums))</code> + <code>nums[i]</code> dance.</p>
+
+<pre><code>for i, x in enumerate(nums):
+    # i = 0, 1, 2, ...
+    # x = nums[i]</code></pre>
+
+<div class="callout">
+  <div class="label">The bug you just fixed</div>
+  <p>Writing <code>for x in enumerate(nums)</code> makes <code>x</code> the whole <em>pair</em> <code>(0, nums[0])</code> - a tuple, not a number. Then <code>target - x</code> fails because you cannot subtract a tuple. Always <strong>unpack</strong> both names: <code>for i, x in enumerate(nums):</code>.</p>
+</div>
+
+<p>Optional second argument sets the start index:</p>
+<pre><code>for i, x in enumerate(nums, 1):   # i = 1, 2, 3, ...
+for i, x in enumerate(nums, 0):   # default</code></pre>
+
+<h2>They compose - this is the whole pattern</h2>
+
+<pre><code>def twoSum(self, nums, target):
+    seen = {}                          # create
+    for i, x in enumerate(nums):       # index + value
+        complement = target - x
+        if complement in seen:         # membership
+            return [seen[complement], i]   # lookup
+        seen[x] = i                    # insert (after!)
+    return []</code></pre>
+
+<p>Every line after <code>seen = {}</code> uses one of the four dict moves or <code>enumerate</code>. There is nothing else to the solve.</p>
+
+<div class="quiz" data-correct="b">
+  <div class="question">You want to know whether key <code>k</code> is in dict <code>d</code>, without crashing if it is not. Which expression?</div>
+  <ul class="options">
+    <li data-k="a"><code>d[k] != None</code></li>
+    <li data-k="b"><code>k in d</code></li>
+    <li data-k="c"><code>d.contains(k)</code></li>
+    <li data-k="d"><code>d.has(k)</code></li>
+  </ul>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-correct="c">
+  <div class="question">What does <code>for x in enumerate(nums)</code> bind <code>x</code> to on the first iteration?</div>
+  <ul class="options">
+    <li data-k="a">The first element, <code>nums[0]</code></li>
+    <li data-k="b">The index <code>0</code></li>
+    <li data-k="c">The pair <code>(0, nums[0])</code></li>
+    <li data-k="d">The length of <code>nums</code></li>
+  </ul>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-correct="d">
+  <div class="question">In the hash-map pattern, why insert <em>after</em> the membership check, not before?</div>
+  <ul class="options">
+    <li data-k="a">Inserts are faster after reads than before</li>
+    <li data-k="b">Python dicts forbid insert-then-read in one loop</li>
+    <li data-k="c">It keeps the dict sorted by insertion order</li>
+    <li data-k="d">So the current element cannot match itself as its own complement</li>
+  </ul>
+  <div class="feedback"></div>
+</div>
+
+<div class="try">
+  <div class="label">Try this</div>
+  <p>Without looking at the lesson or your file, write from memory a function <code>first_duplicate(nums)</code> that returns the first value appearing twice in <code>nums</code>, or <code>None</code> if all are unique. Use one dict and one <code>enumerate</code> loop. Then open your file and compare - did you write the four moves in the right order?</p>
+  <p>Then ask the coach to check it, or ask anything that is unclear.</p>
+</div>
+
+<footer>
+  <p>Companion: <a href="../0001-hash-map-lookup-pattern.html">Lesson 0001 - The Hash-Map Lookup Pattern</a> &amp; <a href="../../reference/python-leetcode-syntax.html">Python Syntax reference</a>. &nbsp; Ask the coach anything that is unclear.</p>
+</footer>
+
+<script>
+const why = {
+  b: 'Right. `k in d` is the membership test - O(1), and it never raises on a missing key.',
+  c: 'Right. enumerate yields (index, value) tuples. Forgetting to unpack was the subtraction bug.',
+  d: 'Right. If you store x first, then for x = 3, target = 6 you would find your own just-stored entry as the complement of yourself.',
+  a: 'No. `d[k]` raises KeyError when k is missing - you never even reach the comparison.',
+  d_alt: 'No. Python dicts allow any order; this is about correctness, not a language rule.'
+};
+document.querySelectorAll('.quiz').forEach(q => {
+  const correct = q.dataset.correct;
+  const feedback = q.querySelector('.feedback');
+  const opts = q.querySelectorAll('.options li');
+  opts.forEach(li => {
+    li.addEventListener('click', () => {
+      opts.forEach(o => o.classList.remove('correct','wrong'));
+      const k = li.dataset.k;
+      if (k === correct) li.classList.add('correct');
+      else { li.classList.add('wrong'); q.querySelector(`li[data-k="${correct}"]`).classList.add('correct'); }
+      feedback.textContent = why[k] || '';
+      feedback.classList.add('show');
+    });
+  });
+});
+</script>
+
+</body>
+</html>

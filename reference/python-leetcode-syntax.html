@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Syntax for LeetCode - Reference</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<header>
+  <div class="kicker">Reference</div>
+  <h1>Python Syntax for LeetCode</h1>
+</header>
+
+<p>The handful of Python mechanics that show up in nearly every LeetCode solution. Keep this open while you code.</p>
+
+<h2>Lists</h2>
+<p>A list is a value, not a function. You cannot <em>call</em> it.</p>
+<pre><code>nums = [2, 7, 11, 15]
+
+nums()       # TypeError: 'list' object is not callable
+len(nums)    # 4  - the number of elements
+nums[0]      # 2  - first element (0-indexed)
+nums[-1]     # 15 - last element
+nums[i] + nums[j]   # sum of two elements</code></pre>
+
+<blockquote>To get the <em>size</em> of a list, string, or dict, call <code>len(x)</code> - never <code>x()</code>.</blockquote>
+
+<h2>Looping with indices</h2>
+<pre><code>for i in range(len(nums)):       # i = 0, 1, 2, ..., len-1
+    print(i, nums[i])
+
+for i, val in enumerate(nums):   # index AND value together
+    print(i, val)</code></pre>
+
+<p><code>range(n)</code> yields <code>0</code> through <code>n-1</code>. <code>range(a, b)</code> yields <code>a</code> through <code>b-1</code>.</p>
+
+<h2>Class vs method scope</h2>
+<p>Names written directly in the class body are <em>class attributes</em>. They are <strong>not</strong> visible as local variables inside methods.</p>
+<pre><code>class Solution:
+    return_list = List[int]      # class attribute - a TYPE, not a value
+
+    def twoSum(self, nums, target):
+        return_list              # NameError? No - reads the class attr,
+                                 # but List[int] is a type, not a list.</code></pre>
+
+<div class="callout">
+  <div class="label">Rule</div>
+  <p>Declare working variables <em>inside</em> the method, on the first line of the body. The class body is only for typing and structure.</p>
+</div>
+
+<pre><code>class Solution:
+    def twoSum(self, nums: List[int], target: int) -> List[int]:
+        result = []              # declared INSIDE the method
+        # ... work ...
+        return result</code></pre>
+
+<h2>Type annotations vs values</h2>
+<p><code>List[int]</code> (after <code>from typing import List</code>) is a <em>type hint</em> - it tells the reader and the type checker what kind of thing a variable is. It is not itself a list. To make an actual empty list, write <code>[]</code> or <code>list()</code>.</p>
+<pre><code>from typing import List
+
+x: List[int] = []     # annotation says "list of ints"; value is an empty list
+y = []                # same thing, no annotation
+z = List[int]         # WRONG - z holds the TYPE, not a list</code></pre>
+
+<h2>Dictionaries (the hash map)</h2>
+<pre><code>d = {}                   # empty dict
+d[key] = value          # insert / overwrite
+val = d[key]            # read - KeyError if missing
+val = d.get(key)        # read - None if missing (safer)
+val = d.get(key, -1)    # read - -1 if missing
+
+key in d                # True if key exists
+for k, v in d.items():  # iterate key/value pairs</code></pre>
+
+<blockquote>A dict is Python's hash map: <code>O(1)</code> average lookup, insert, and delete. This is the workhorse of the complement-pattern.</blockquote>
+
+<h2>Returning early</h2>
+<p>When a problem guarantees exactly one answer, you may <code>return</code> the moment you find it - no need to collect results.</p>
+<pre><code>for i in range(len(nums)):
+    for j in range(i + 1, len(nums)):
+        if nums[i] + nums[j] == target:
+            return [i, j]      # found it - done</code></pre>
+
+<footer>
+  <p>Reference for <a href="../lessons/0001-hash-map-lookup-pattern.html">Lesson 0001 - The Hash-Map Lookup Pattern</a>.</p>
+</footer>
+
+</body>
+</html>

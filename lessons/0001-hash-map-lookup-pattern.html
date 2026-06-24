@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0001 - The Hash-Map Lookup Pattern</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<header>
+  <div class="kicker">Lesson 0001 · Pattern</div>
+  <h1>The Hash-Map Lookup Pattern</h1>
+</header>
+
+<p>A family of problems, one idea: <strong>instead of re-scanning the data to find a match, remember what you have already seen in a hash map so a lookup takes <code>O(1)</code> instead of <code>O(n)</code></strong>. Trade memory for speed.</p>
+
+<h2>Spot the family</h2>
+
+<p>A problem belongs to this family when you can phrase it as:</p>
+
+<blockquote>“For each element <code>x</code>, is there some <em>related</em> element (a complement, a duplicate, a previous occurrence, a count) that I could answer in one step <em>if I had remembered what came before</em>?”</blockquote>
+
+<p>Signal words in the statement: <em>pair</em>, <em>duplicate</em>, <em>first recurring</em>, <em>count of</em>, <em>anagram of</em>, <em>two … that …</em>. If you can name a <dfn>complement</dfn> - the thing <code>x</code> needs in order to satisfy the condition - you are in this family.</p>
+
+<h2>Canonical members</h2>
+
+<table>
+  <thead><tr><th>Problem</th><th>The complement</th><th>Key −&gt; value</th></tr></thead>
+  <tbody>
+    <tr><td>Two Sum</td><td><code>target − x</code></td><td>number −&gt; its index</td></tr>
+    <tr><td>Contains Duplicate</td><td><code>x</code> itself (already seen?)</td><td>number −&gt; bool / count</td></tr>
+    <tr><td>First Unique Character</td><td>count of <code>x</code> == 1?</td><td>char −&gt; count</td></tr>
+    <tr><td>Majority Element</td><td>running count of <code>x</code></td><td>number −&gt; count</td></tr>
+    <tr><td>Valid Anagram</td><td>matching character counts</td><td>char −&gt; count</td></tr>
+    <tr><td>Subarray Sum Equals K</td><td><code>prefix_sum − k</code></td><td>prefix sum −&gt; frequency</td></tr>
+  </tbody>
+</table>
+
+<p>Notice the shape: one pass, one dict, <em>look up the complement, then record the current element</em>. Only the <em>complement</em> and the <em>stored value</em> change between problems.</p>
+
+<h2>The shape, abstracted</h2>
+
+<pre><code>seen = {}                       # the memory
+for item in stream:
+    complement = needed_relation(item)
+    if complement in seen:      # O(1) - the move that beats the nested loop
+        return answer_from(seen[complement], item)
+    seen[item] = something      # record AFTER checking</code></pre>
+
+<div class="callout">
+  <div class="label">Why record after, not before?</div>
+  <p>Two reasons. (1) Self-match: in Two Sum you may not use the same element twice, so <code>x</code> must not find itself. (2) Semantics: <em>seen</em> means "elements <strong>before</strong> this one." Recording first makes the current element look like a prior one.</p>
+</div>
+
+<h2>Choosing the key and the value</h2>
+
+<p>The dict answers one question in O(1): <em>"is this key present?"</em> So the <strong>key</strong> is the thing you are asking about - the complement you look up. The <strong>value</strong> is whatever you need to retrieve when the answer is "yes."</p>
+
+<div class="callout">
+  <div class="label">Rule</div>
+  <p>The <code>in</code> check tests the <strong>keys</strong>. So ask: what does <code>complement in seen</code> need to test? That thing is your key. Whatever you need back from <code>seen[complement]</code> to build the answer is your value.</p>
+</div>
+
+<p>Walk it from the <code>in</code> check, not from the data:</p>
+<ul>
+  <li><strong>Two Sum</strong> - "is <code>target - x</code> a number I have seen?" Key: the number. Value: its index (you must return indices).</li>
+  <li><strong>Contains Duplicate</strong> - "is <code>x</code> a value I have seen?" Key: the value. Value: anything (a bool, a count) - the problem only asks yes/no.</li>
+  <li><strong>First Unique Character</strong> - "how many times have I seen <code>c</code>?" Key: the character. Value: its count.</li>
+</ul>
+
+<blockquote>If you key by the index, then <code>value in seen</code> asks "is this value an index I have visited?" - a different question than the one the problem poses. The test cases may pass by coincidence; the logic is wrong.</blockquote>
+
+<h2>What the pattern costs</h2>
+
+<p>Time drops from <code>O(n²)</code> (nested loop, re-scan each step) to <mark><code>O(n)</code></mark>: one pass, each dict operation averaging <code>O(1)</code>.</p>
+<p>Space rises from <code>O(1)</code> to <mark><code>O(n)</code></mark>: in the worst case you store every element before finding the answer.</p>
+
+<blockquote>This trade - pay memory, buy speed - is one of the most common moves in algorithm problems. When you see a brute force that re-scans, ask: <em>what would I need to remember to make each step <code>O(1)</code>?</em></blockquote>
+
+<h2>Worked example: Two Sum</h2>
+
+<p>For each <code>x</code> at index <code>i</code>, the complement is <code>target − x</code>. The stored value is the index, because the problem asks for indices.</p>
+
+<pre><code>def twoSum(self, nums, target):
+    seen = {}                       # number -&gt; index
+    for i, x in enumerate(nums):
+        complement = target - x
+        if complement in seen:
+            return [seen[complement], i]
+        seen[x] = i</code></pre>
+
+<p>The nested loop checked every <code>(i, j)</code> pair: <code>O(n²)</code>. The dict remembers each number so a later element finds its partner in one lookup.</p>
+
+<div class="quiz" data-correct="b">
+  <div class="question">For <strong>Contains Duplicate</strong> (“does any value appear twice?”), what is the complement and what do you store?</div>
+  <ul class="options">
+    <li data-k="a">Complement: a different index with the same value. Store: index -&gt; value.</li>
+    <li data-k="b">Complement: the value itself (already seen?). Store: value -&gt; True.</li>
+    <li data-k="c">Complement: <code>target − value</code>. Store: value -&gt; count.</li>
+    <li data-k="d">Complement: the next element. Store: value -&gt; next value.</li>
+  </ul>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-correct="c">
+  <div class="question">What is the complexity trade this pattern makes, relative to the nested-loop brute force?</div>
+  <ul class="options">
+    <li data-k="a">Time <code>O(n²)</code> -&gt; <code>O(n)</code>; space unchanged <code>O(1)</code>.</li>
+    <li data-k="b">Time unchanged; space <code>O(n)</code> -&gt; <code>O(1)</code>.</li>
+    <li data-k="c">Time <code>O(n²)</code> -&gt; <code>O(n)</code>; space <code>O(1)</code> -&gt; <code>O(n)</code>.</li>
+    <li data-k="d">Both time and space improve.</li>
+  </ul>
+  <div class="feedback"></div>
+</div>
+
+<div class="try">
+  <div class="label">Try this</div>
+  <p>Apply the pattern to <strong>Two Sum</strong> in your <code>1.two-sum.py</code>: one dict, look up <code>target − x</code>, record <code>x -&gt; i</code> after. Run <code>leet test 1</code>.</p>
+  <p>Then tell the coach - from memory: the pattern's name, its complexity trade, and one other problem in the family besides Two Sum.</p>
+</div>
+
+<footer>
+  <p>Reference: <a href="../reference/python-leetcode-syntax.html">Python Syntax for LeetCode</a> (dict usage, <code>len</code>, scope). &nbsp; Ask the coach anything that is unclear.</p>
+</footer>
+
+<script>
+const why = {
+  b: 'Right. The condition is "have I seen this value before?" - the value is its own complement, and you only need to know it is present.',
+  c: 'Right. One pass with O(1) dict operations replaces the O(n²) nested scan; the dict grows up to n entries.',
+  a: 'No. The problem does not ask about indices, only whether a repeat exists. Think about what you actually need to answer.',
+  d: 'No. There is no "next value" relation. The point of the pattern is to look backward, not forward.'
+};
+document.querySelectorAll('.quiz').forEach(q => {
+  const correct = q.dataset.correct;
+  const feedback = q.querySelector('.feedback');
+  const opts = q.querySelectorAll('.options li');
+  opts.forEach(li => {
+    li.addEventListener('click', () => {
+      opts.forEach(o => o.classList.remove('correct','wrong'));
+      const k = li.dataset.k;
+      if (k === correct) li.classList.add('correct');
+      else { li.classList.add('wrong'); q.querySelector(`li[data-k="${correct}"]`).classList.add('correct'); }
+      feedback.textContent = why[k] || '';
+      feedback.classList.add('show');
+    });
+  });
+});
+</script>
+
+</body>
+</html>
